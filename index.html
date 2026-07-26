@@ -1,0 +1,1094 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#08090B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Training">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>Training</title>
+
+<style>
+:root{
+  --bg:#08090B; --surface:#121417; --surface-2:#1A1D22; --surface-3:#242830;
+  --line:#2B3038; --line-soft:#1C2027;
+  --text:#F2F5F9; --text-2:#98A2B3; --text-3:#5E6875;
+  --lime:#C7FF3E; --cyan:#3ADCFF; --amber:#FFB13D; --red:#FF5A5A;
+  --accent:var(--lime);
+  --r:16px; --r-sm:11px;
+  --sat:env(safe-area-inset-top); --sab:env(safe-area-inset-bottom);
+  --tabh:calc(58px + var(--sab));
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg); color:var(--text);
+  font:400 16px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased; overscroll-behavior-y:none;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+input,textarea{background:none;border:0;outline:none}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+/* ---------- layout ---------- */
+#app{min-height:100%;padding-top:var(--sat)}
+.scroll{padding:0 16px calc(var(--tabh) + 24px);max-width:720px;margin:0 auto}
+.wide .scroll{max-width:980px}
+
+/* ---------- type ---------- */
+h1{font-size:30px;line-height:1.1;letter-spacing:-.02em;font-weight:700;margin:0}
+h2{font-size:13px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--text-3);margin:28px 0 10px}
+.sub{color:var(--text-2);font-size:14px;margin:4px 0 0}
+.dim{color:var(--text-2)} .dim2{color:var(--text-3)}
+
+/* ---------- top bar ---------- */
+.top{padding:22px 0 4px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;
+  background:var(--surface-2);border:1px solid var(--line);font-size:13px;font-weight:600;
+  color:var(--text-2);white-space:nowrap
+}
+.chip b{color:var(--accent);font-weight:700}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+
+/* ---------- cards ---------- */
+.card{
+  background:linear-gradient(180deg,var(--surface-2),var(--surface));
+  border:1px solid var(--line-soft);border-radius:var(--r);padding:18px;margin-bottom:12px
+}
+.card.flush{padding:0;overflow:hidden}
+
+.hero{position:relative;overflow:hidden}
+.hero::before{
+  content:"";position:absolute;inset:-40% -20% auto auto;width:260px;height:260px;border-radius:50%;
+  background:radial-gradient(circle,color-mix(in srgb,var(--accent) 22%,transparent),transparent 68%);
+  pointer-events:none
+}
+.hero .kind{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.hero h3{font-size:27px;font-weight:700;letter-spacing:-.02em;margin:6px 0 0}
+.hero .meta{color:var(--text-2);font-size:14px;margin-top:6px}
+
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:15px;border-radius:13px;background:var(--accent);color:#0A0C08;
+  font-weight:700;font-size:16px;letter-spacing:-.01em;margin-top:16px
+}
+.btn:active{transform:scale(.985)}
+.btn.ghost{background:var(--surface-3);color:var(--text);border:1px solid var(--line)}
+.btn.slim{padding:12px;font-size:15px;margin-top:10px}
+
+.row{display:flex;align-items:center;gap:12px}
+.between{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.grow{flex:1;min-width:0}
+.trunc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- pick list ---------- */
+.picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px}
+.pick{
+  text-align:left;padding:14px;border-radius:var(--r-sm);background:var(--surface);
+  border:1px solid var(--line-soft)
+}
+.pick .n{font-weight:650;font-size:15px;letter-spacing:-.01em}
+.pick .d{font-size:12.5px;color:var(--text-3);margin-top:3px}
+.pick:active{background:var(--surface-2)}
+.bar{width:26px;height:3px;border-radius:2px;background:var(--accent);margin-bottom:10px;opacity:.9}
+
+/* ---------- mobility ---------- */
+.mob{display:flex;align-items:center;gap:14px;padding:16px 18px}
+.tick{
+  width:46px;height:46px;border-radius:50%;flex:none;display:grid;place-items:center;
+  border:2px solid var(--line);color:var(--text-3);transition:.15s
+}
+.tick.on{background:var(--amber);border-color:var(--amber);color:#170E00}
+.streak{font-size:13px;color:var(--text-2)}
+.streak b{color:var(--amber)}
+
+/* ---------- session (fullscreen) ---------- */
+.shead{
+  position:sticky;top:0;z-index:20;padding:calc(var(--sat) + 12px) 16px 12px;
+  background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--line-soft)
+}
+.shead .t{font-size:19px;font-weight:700;letter-spacing:-.02em}
+.shead .s{font-size:12.5px;color:var(--text-3);margin-top:2px}
+.iconbtn{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line);flex:none}
+.prog{height:3px;border-radius:2px;background:var(--surface-3);margin-top:12px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--accent);transition:width .35s cubic-bezier(.4,0,.2,1)}
+
+.ex{border:1px solid var(--line-soft);border-radius:var(--r);margin-bottom:12px;background:var(--surface);overflow:hidden}
+.ex.active{border-color:color-mix(in srgb,var(--accent) 40%,var(--line));background:var(--surface-2)}
+.ex.done{opacity:.55}
+.exh{padding:15px 16px;display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left}
+.exh .nm{font-weight:650;font-size:16px;letter-spacing:-.01em}
+.exh .tg{font-size:12.5px;color:var(--text-3);margin-top:3px}
+.exh .last{font-size:12.5px;color:var(--text-2);margin-top:6px}
+.exh .last b{color:var(--text);font-weight:600}
+.pill{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--surface-3);color:var(--text-2);letter-spacing:.04em;flex:none}
+.pill.main{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+.pill.ok{background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent)}
+
+.sets{padding:0 12px 12px}
+.set{display:flex;align-items:center;gap:8px;padding:8px 4px;border-top:1px solid var(--line-soft)}
+.set .ix{width:18px;font-size:13px;font-weight:700;color:var(--text-3);flex:none;text-align:center}
+.set.on{background:color-mix(in srgb,var(--accent) 5%,transparent);border-radius:10px 10px 0 0;box-shadow:inset 2px 0 0 var(--accent)}
+.set.ok .ix{color:var(--accent)}
+
+.fld{
+  flex:1;display:flex;align-items:baseline;background:var(--surface);border:1px solid var(--line);
+  border-radius:10px;min-width:0;height:48px;padding:0 11px
+}
+.ex.active .fld{background:var(--bg)}
+.fld .v{flex:1;min-width:0;width:100%;text-align:right;font-size:18px;font-weight:650;align-self:center}
+.fld .v::-webkit-outer-spin-button,.fld .v::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.fld .v[type=number]{-moz-appearance:textfield}
+.fld .v::placeholder{color:var(--text-3);font-weight:600}
+.fld.sug .v{color:var(--text-2)}
+.fld .u{font-size:11.5px;color:var(--text-3);font-weight:650;padding-left:6px;flex:none;align-self:center}
+
+.chk{
+  width:48px;height:48px;border-radius:11px;flex:none;display:grid;place-items:center;
+  background:var(--surface-3);border:1px solid var(--line);color:var(--text-3)
+}
+.set.on .chk{background:var(--accent);border-color:var(--accent);color:#0A0C08}
+.set.ok .chk{background:color-mix(in srgb,var(--accent) 16%,transparent);border-color:color-mix(in srgb,var(--accent) 35%,transparent);color:var(--accent)}
+
+/* Steppers ride under the active set only — keeps the row itself uncluttered. */
+.steps{
+  display:flex;gap:6px;align-items:center;padding:0 4px 10px 26px;
+  background:color-mix(in srgb,var(--accent) 5%,transparent);border-radius:0 0 10px 10px;
+  box-shadow:inset 2px 0 0 var(--accent)
+}
+.steps button{
+  flex:1;min-width:0;height:38px;border-radius:9px;background:var(--surface-3);
+  border:1px solid var(--line);font-size:13.5px;font-weight:650;color:var(--text-2)
+}
+.steps button:active{background:var(--accent);color:#0A0C08;border-color:var(--accent)}
+.steps .rpe{
+  width:62px;flex:none;height:38px;border-radius:9px;border:1px solid var(--line);
+  background:var(--surface-3);text-align:center;font-size:14px;font-weight:650
+}
+.steps .rpe::placeholder{color:var(--text-3);font-size:12px}
+.setnote{font-size:12.5px;color:var(--text-3);padding:8px 6px 2px;width:100%;text-align:left}
+
+.addex{width:100%;padding:14px;border-radius:var(--r);border:1px dashed var(--line);color:var(--text-2);font-weight:600;font-size:14.5px;margin-bottom:12px}
+.addex:active{border-color:var(--accent);color:var(--accent)}
+
+/* ---------- rest bar ---------- */
+.rest{
+  position:fixed;left:0;right:0;bottom:0;z-index:60;padding:12px 16px calc(12px + var(--sab));
+  background:color-mix(in srgb,var(--surface-2) 94%,transparent);backdrop-filter:blur(20px);
+  border-top:1px solid var(--line);display:flex;align-items:center;gap:12px
+}
+.rest.done{background:color-mix(in srgb,var(--accent) 16%,var(--surface-2));border-top-color:var(--accent)}
+.rest .tm{font-size:26px;font-weight:700;letter-spacing:-.03em;min-width:76px}
+.rest .lb{font-size:11.5px;color:var(--text-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.rest button{padding:9px 12px;border-radius:9px;background:var(--surface-3);border:1px solid var(--line);font-size:13.5px;font-weight:650;color:var(--text-2)}
+.rest .rp{position:absolute;left:0;top:-1px;height:2px;background:var(--accent);transition:width 1s linear}
+
+/* ---------- cardio / forms ---------- */
+.frow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--line-soft)}
+.frow:last-child{border-bottom:0}
+.frow label{font-size:14.5px;color:var(--text-2);flex:none}
+.frow input{text-align:right;font-size:17px;font-weight:650;flex:1;min-width:0}
+.frow .u{font-size:12px;color:var(--text-3);width:34px;text-align:left;flex:none}
+textarea.note{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:12px;font-size:15px;resize:vertical;min-height:74px;margin-top:10px}
+
+/* ---------- history ---------- */
+.hitem{display:flex;gap:14px;padding:15px 16px;border:1px solid var(--line-soft);border-radius:var(--r-sm);background:var(--surface);margin-bottom:9px;width:100%;text-align:left;align-items:center}
+.hitem .dt{width:44px;flex:none;text-align:center}
+.hitem .dt .d{font-size:19px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.hitem .dt .m{font-size:10.5px;color:var(--text-3);font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-top:3px}
+.hitem .nm{font-weight:650;font-size:15.5px;letter-spacing:-.01em}
+.hitem .sm{font-size:12.5px;color:var(--text-3);margin-top:3px}
+.vline{width:1px;align-self:stretch;background:var(--line-soft)}
+
+.det{border:1px solid var(--line-soft);border-radius:var(--r);background:var(--surface);padding:16px;margin-bottom:12px}
+.det .nm{font-weight:650;margin-bottom:9px}
+.dset{display:flex;gap:10px;font-size:14px;padding:6px 0;border-top:1px solid var(--line-soft);align-items:baseline}
+.dset .ix{width:18px;color:var(--text-3);font-size:12px;font-weight:700}
+.dset .w{font-weight:650}
+
+/* ---------- tabs ---------- */
+.tabs{
+  position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;
+  padding-bottom:var(--sab);background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(20px);border-top:1px solid var(--line-soft)
+}
+.tab{flex:1;padding:9px 0 7px;display:grid;place-items:center;gap:3px;color:var(--text-3);font-size:10.5px;font-weight:650;letter-spacing:.02em}
+.tab.on{color:var(--accent)}
+
+/* ---------- sheet / toast ---------- */
+.mask{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:520px;background:var(--surface-2);border:1px solid var(--line);border-radius:20px 20px 0 0;padding:20px 18px calc(20px + var(--sab));animation:up .26s cubic-bezier(.2,.9,.3,1)}
+@keyframes up{from{transform:translateY(24px);opacity:.4}}
+.sheet h4{margin:0 0 14px;font-size:18px;font-weight:700;letter-spacing:-.02em}
+.sheet input[type=text],.sheet input[type=number]{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px;font-size:16px}
+.opts{display:flex;gap:8px;margin-top:12px}
+.opt{flex:1;padding:12px;border-radius:11px;background:var(--surface);border:1px solid var(--line);font-weight:650;font-size:14.5px;text-align:center}
+.opt.on{background:color-mix(in srgb,var(--accent) 16%,transparent);border-color:var(--accent);color:var(--accent)}
+
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabh) + 18px);z-index:90;
+  background:var(--surface-3);border:1px solid var(--line);padding:11px 17px;border-radius:11px;
+  font-size:14px;font-weight:600;box-shadow:0 8px 28px rgba(0,0,0,.5);animation:up .2s
+}
+.empty{text-align:center;padding:52px 20px;color:var(--text-3);font-size:14.5px}
+
+/* ---------- desktop ---------- */
+@media (min-width:860px){
+  .tabs{top:0;bottom:auto;height:56px;padding:0;border-top:0;border-bottom:1px solid var(--line-soft);justify-content:center;gap:6px}
+  .tab{flex:0 0 auto;padding:0 22px;grid-auto-flow:column;align-items:center;gap:8px;font-size:13.5px}
+  #app{padding-top:56px}
+  .scroll{padding-bottom:60px}
+  .shead{top:56px}
+}
+</style>
+
+<div id="app"></div>
+
+<script>
+"use strict";
+
+/* ==========================================================================
+   Routine — derived from workout-routine.md. Block A = strength,
+   Block B = hypertrophy; each exercise carries targets for both.
+   ========================================================================== */
+const ROUTINE = {
+  // JS getDay(): 0 = Sunday
+  week: {0:"upper", 1:"zwift-hiit", 2:"rest", 3:"legs", 4:"zwift-z2", 5:"arms", 6:"long-ride"},
+  sessions: {
+    legs: {
+      name:"Legs", kind:"strength", tag:"Strength · posterior-chain biased",
+      warmup:"90/90 hip switches · couch stretch · banded glute bridges ×15 · bodyweight squats ×10",
+      exercises:[
+        {id:"back-squat", name:"Back Squat", main:true, A:{sets:4,lo:4,hi:6}, B:{sets:4,lo:8,hi:12},
+         note:"Braced neutral spine. If the back is symptomatic, drop load/range or swap to front or goblet squat."},
+        {id:"hip-thrust", name:"Barbell Hip Thrust", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12},
+         note:"Glute strength at low spinal load — directly counters cycling posture."},
+        {id:"bulgarian-split-squat", name:"DB Bulgarian Split Squat", perSide:true, A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12}},
+        {id:"romanian-deadlift", name:"Romanian Deadlift", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12},
+         note:"Light–moderate, hinge from the hips. Swap to cable pull-through if the back is flaring."},
+        {id:"pallof-press", name:"Pallof Press", perSide:true, A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}},
+        {id:"dead-bug", name:"Dead Bug", bodyweight:true, perSide:true, A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}}
+      ]
+    },
+    upper: {
+      name:"Upper", kind:"strength", tag:"Push / pull",
+      warmup:"Band shoulder dislocates · scap push-ups · light face pulls",
+      exercises:[
+        {id:"bench-press", name:"Barbell Bench Press", main:true, A:{sets:4,lo:5,hi:5}, B:{sets:4,lo:8,hi:10}},
+        {id:"weighted-pullup", name:"Weighted Pull-up", main:true, A:{sets:4,lo:5,hi:8}, B:{sets:3,lo:8,hi:10},
+         note:"Log added weight — 0 is bodyweight."},
+        {id:"incline-db-press", name:"Incline DB Press", A:{sets:3,lo:8,hi:10}, B:{sets:3,lo:12,hi:12}},
+        {id:"db-row", name:"DB or Cable Row", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:12,hi:12}},
+        {id:"face-pull", name:"Face Pulls", A:{sets:3,lo:15,hi:15}, B:{sets:3,lo:15,hi:15},
+         note:"Rear delts + posture — counters the cyclist's rounded upper back."}
+      ]
+    },
+    arms: {
+      name:"Arms/Calves/Neck", kind:"strength", tag:"Plus hip & core finisher",
+      warmup:"~5 min general warm-up",
+      exercises:[
+        {id:"standing-calf-raise", name:"Standing Calf Raise", A:{sets:4,lo:12,hi:12}, B:{sets:4,lo:12,hi:12}},
+        {id:"seated-calf-raise", name:"Seated/Single-leg Calf Raise", A:{sets:3,lo:15,hi:15}, B:{sets:3,lo:15,hi:15}},
+        {id:"db-curl", name:"DB Curl", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:12,hi:15}},
+        {id:"cable-pushdown", name:"Cable Pushdown", A:{sets:3,lo:12,hi:12}, B:{sets:3,lo:15,hi:15}},
+        {id:"hammer-curl", name:"Hammer Curl", A:{sets:2,lo:12,hi:12}, B:{sets:2,lo:12,hi:15}},
+        {id:"overhead-tricep-ext", name:"Overhead Triceps Ext", A:{sets:2,lo:12,hi:12}, B:{sets:2,lo:12,hi:15}},
+        {id:"neck", name:"Neck Flexion/Extension", optional:true, A:{sets:2,lo:15,hi:15}, B:{sets:2,lo:15,hi:15},
+         note:"Optional — keep it light."}
+      ],
+      finisher:"8–10 min hip + core mobility flow"
+    },
+    "zwift-hiit": {name:"Zwift HIIT", kind:"cardio", tag:"Intervals · under 60 min",
+      detail:"10 min warm-up → 5 × 4 min hard (Z4–5) with 3 min easy → 10 min cool-down"},
+    "zwift-z2":   {name:"Zwift Z2", kind:"cardio", tag:"Zone 2 endurance · 45–60 min",
+      detail:"Conversational effort, RPE 3–4/10"},
+    "long-ride":  {name:"Long Ride", kind:"cardio", tag:"Outdoor Zone 2 · 2–3 hr",
+      detail:"Mostly Zone 2. Stretch hip flexors + hamstrings afterward — non-negotiable."},
+    rest: {name:"Rest", kind:"rest", tag:"Recovery day",
+      detail:"Sits right after leg day. Heat/cold, an easy walk, or the mobility flow — or just rest."}
+  }
+};
+
+const MOBILITY = [
+  "Couch / hip-flexor stretch — 60 s/side",
+  "90/90 hip rotations — 8/side",
+  "Glute bridges + clamshells — 15 each",
+  "Dead bug / bird dog — 8–10/side",
+  "Cat–cow — gentle segmental movement"
+];
+
+const REST = {A:{main:180, acc:90}, B:{main:90, acc:60}};
+
+/* ==========================================================================
+   Storage — IndexedDB. `entries` is an append-only log: every set, ride and
+   mobility tick is one record with its own id and ts. Edits supersede by id,
+   deletes are tombstones. That makes cross-device merging lossless later.
+   ========================================================================== */
+const DB = (() => {
+  let db = null;
+  let mode = "idb";
+  const mem = {entries:{}, meta:{}};                    // last-resort in-memory store
+  const KEY = s => "wt." + s;
+
+  const openIDB = () => new Promise((res, rej) => {
+    // Safari throws synchronously on opaque origins (file://), and can also
+    // just never fire an event — so this races a timeout.
+    if (!window.indexedDB) return rej(new Error("no indexedDB"));
+    const r = indexedDB.open("wt", 1);
+    r.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains("entries")) d.createObjectStore("entries", {keyPath:"id"});
+      if (!d.objectStoreNames.contains("meta"))    d.createObjectStore("meta",    {keyPath:"k"});
+    };
+    r.onsuccess = () => { db = r.result; res(db); };
+    r.onerror   = () => rej(r.error || new Error("indexedDB blocked"));
+    r.onblocked = () => rej(new Error("indexedDB blocked"));
+    setTimeout(() => db || rej(new Error("indexedDB timed out")), 3000);
+  });
+
+  const lsOK = () => { try { localStorage.setItem("wt.probe","1"); localStorage.removeItem("wt.probe"); return true; } catch(e){ return false; } };
+  const lsAll = s => { try { return JSON.parse(localStorage.getItem(KEY(s)) || "[]"); } catch(e){ return []; } };
+  const lsPut = (s, v, key) => {
+    const arr = lsAll(s), i = arr.findIndex(x => x[key] === v[key]);
+    if (i >= 0) arr[i] = v; else arr.push(v);
+    localStorage.setItem(KEY(s), JSON.stringify(arr));
+  };
+
+  const tx   = (store, m) => db.transaction(store, m).objectStore(store);
+  const wrap = req => new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error); });
+
+  return {
+    /** Degrades IndexedDB -> localStorage -> memory rather than dying. */
+    async open(){
+      try { await openIDB(); mode = "idb"; }
+      catch(e){ mode = lsOK() ? "ls" : "mem"; }
+      return mode;
+    },
+    get mode(){ return mode; },
+    async all(s){
+      if (mode === "idb") return wrap(tx(s, "readonly").getAll());
+      if (mode === "ls")  return lsAll(s);
+      return Object.values(mem[s]);
+    },
+    async put(s, v){
+      const key = s === "entries" ? "id" : "k";
+      if (mode === "idb") return wrap(tx(s, "readwrite").put(v));
+      if (mode === "ls")  return lsPut(s, v, key);
+      mem[s][v[key]] = v;
+    }
+  };
+})();
+
+const S = {entries:[], meta:{}, view:"today", active:null, rest:null, sheet:null, detail:null, toast:null};
+
+const uid   = () => "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const iso   = d => { const x = d || new Date(); return new Date(x.getTime() - x.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+const today = () => iso();
+const esc   = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num   = v => (v === "" || v == null || isNaN(+v)) ? null : +v;
+
+async function setMeta(k, v){ S.meta[k] = v; await DB.put("meta", {k, v}); }
+
+async function saveEntry(e){
+  const i = S.entries.findIndex(x => x.id === e.id);
+  if (i >= 0) S.entries[i] = e; else S.entries.push(e);
+  await DB.put("entries", e);
+}
+
+/* ---------- derived ---------- */
+function blockInfo(){
+  const b = S.meta.block || {block:"A", start:today()};
+  const wk = Math.floor((new Date(today()+"T00:00:00") - new Date(b.start+"T00:00:00")) / 6048e5) + 1;
+  return {block:b.block, start:b.start, week:Math.max(1, wk)};
+}
+const target = (ex, blk) => ex[blk] || ex.A;
+const sets   = () => S.entries.filter(e => e.type === "set" && !e.deleted);
+
+/** Most recent session's sets for an exercise, strictly before `beforeDate`. */
+function lastPerf(exerciseId, beforeDate){
+  const rows = sets().filter(e => e.exerciseId === exerciseId && e.date < beforeDate);
+  if (!rows.length) return null;
+  const d = rows.reduce((m, e) => e.date > m ? e.date : m, "");
+  return {date:d, sets:rows.filter(e => e.date === d).sort((a,b) => a.setIndex - b.setIndex)};
+}
+
+function mobilityStreak(){
+  const done = new Set(S.entries.filter(e => e.type === "mobility" && !e.deleted).map(e => e.date));
+  let n = 0, d = new Date();
+  if (!done.has(iso(d))) d.setDate(d.getDate() - 1);   // today not yet ticked doesn't break it
+  while (done.has(iso(d))) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+
+/** All logged sessions, newest first. */
+function sessionList(){
+  const map = new Map();
+  for (const e of S.entries){
+    if (e.deleted || e.type === "mobility") continue;
+    const key = e.date + "|" + e.sessionId;
+    if (!map.has(key)) map.set(key, {date:e.date, sessionId:e.sessionId, sessionName:e.sessionName, type:e.type, entries:[]});
+    map.get(key).entries.push(e);
+  }
+  return [...map.values()].sort((a,b) => b.date < a.date ? -1 : 1);
+}
+
+const knownExercises = () => {
+  const m = new Map();
+  Object.values(ROUTINE.sessions).forEach(s => (s.exercises||[]).forEach(e => m.set(e.id, e.name)));
+  sets().forEach(e => m.set(e.exerciseId, e.exerciseName));
+  return m;
+};
+
+/* ==========================================================================
+   Session flow
+   ========================================================================== */
+function buildExercise(ex, blk, date){
+  const t = target(ex, blk), last = lastPerf(ex.id, date);
+  return {
+    ...ex, target:t, last,
+    sets: Array.from({length:t.sets}, (_, i) => {
+      const ls = last && last.sets[i];
+      return {
+        reps:   ls ? ls.reps   : t.lo,
+        weight: ls ? ls.weight : (ex.bodyweight ? 0 : null),
+        rpe:null, done:false, suggested:!!ls, entryId:null
+      };
+    })
+  };
+}
+
+function startSession(id){
+  // Resume rather than rebuild — a rebuild would throw away sets already logged.
+  if (S.active && S.active.sessionId === id && S.active.date === today()){ reqWake(); return go("session"); }
+  const s = ROUTINE.sessions[id], blk = blockInfo().block, date = today();
+  S.active = {
+    sessionId:id, sessionName:s.name, kind:s.kind, date, block:blk, startedAt:Date.now(),
+    exercises: (s.exercises || []).map(ex => buildExercise(ex, blk, date)),
+    cardio: s.kind === "cardio" ? {durationMin:null, distanceMi:null, avgPower:null, avgHr:null, rpe:null, notes:""} : null,
+    cur:0
+  };
+  reqWake(); persistActive(); go("session");
+}
+
+/* Debounced — oninput fires per keystroke and IDB writes are not free. */
+let _pt = null;
+function persistActive(){ clearTimeout(_pt); _pt = setTimeout(() => setMeta("active", S.active), 400); }
+
+function restFor(ex){
+  const b = REST[S.active.block] || REST.A;
+  return ex.main ? b.main : b.acc;
+}
+
+async function logSet(ei, si){
+  const ex = S.active.exercises[ei], st = ex.sets[si];
+  if (st.weight == null && !ex.bodyweight) return toast("Enter a weight first");
+  if (st.reps == null)                     return toast("Enter reps first");
+
+  const id = st.entryId || uid();
+  await saveEntry({
+    id, ts:Date.now(), type:"set",
+    date:S.active.date, sessionId:S.active.sessionId, sessionName:S.active.sessionName,
+    block:S.active.block, exerciseId:ex.id, exerciseName:ex.name, setIndex:si + 1,
+    reps:st.reps, weight:st.weight, unit:"lb", rpe:st.rpe, notes:"", deleted:false
+  });
+  st.done = true; st.entryId = id; st.suggested = false;
+
+  // Advance to the next unfinished exercise once this one is complete.
+  if (ex.sets.every(x => x.done)){
+    const nxt = S.active.exercises.findIndex((e, i) => i > ei && !e.sets.every(x => x.done));
+    if (nxt >= 0) S.active.cur = nxt;
+  }
+  startRest(restFor(ex));
+  setMeta("active", S.active); render();
+}
+
+async function unlogSet(ei, si){
+  const st = S.active.exercises[ei].sets[si];
+  if (st.entryId){
+    const e = S.entries.find(x => x.id === st.entryId);
+    if (e) await saveEntry({...e, deleted:true, ts:Date.now()});
+  }
+  st.done = false; st.entryId = null;
+  persistActive(); render();
+}
+
+async function finishSession(){
+  if (S.active.kind === "cardio"){
+    const c = S.active.cardio;
+    if (c.durationMin == null) return toast("Add a duration");
+    await saveEntry({
+      id:`cardio-${S.active.date}-${S.active.sessionId}`, ts:Date.now(), type:"cardio",
+      date:S.active.date, sessionId:S.active.sessionId, sessionName:S.active.sessionName,
+      ...c, deleted:false
+    });
+  }
+  S.active = null; S.rest = null;
+  await setMeta("active", null); await setMeta("rest", null);
+  releaseWake(); go("today"); toast("Session saved");
+}
+
+async function toggleMobility(date){
+  const id = "mob-" + date, cur = S.entries.find(e => e.id === id);
+  await saveEntry({id, ts:Date.now(), type:"mobility", date, deleted:cur ? !cur.deleted : false});
+  render();
+}
+
+/* ==========================================================================
+   Rest timer — stores an absolute end time, so backgrounding or reloading
+   never drifts it. iOS freezes JS timers when the app isn't foregrounded;
+   recomputing from Date.now() sidesteps that entirely.
+   ========================================================================== */
+function startRest(sec){ S.rest = {endsAt:Date.now() + sec*1000, dur:sec, rang:false}; setMeta("rest", S.rest); }
+function adjustRest(d){ if (S.rest){ S.rest.endsAt += d*1000; S.rest.dur += d; setMeta("rest", S.rest); paintRest(); } }
+function skipRest(){ S.rest = null; setMeta("rest", null); render(); }
+const restLeft = () => S.rest ? Math.round((S.rest.endsAt - Date.now())/1000) : 0;
+
+setInterval(() => {
+  if (!S.rest) return;
+  const left = restLeft();
+  if (left <= 0 && !S.rest.rang){ S.rest.rang = true; beep(); }
+  if (left <= -30) { S.rest = null; setMeta("rest", null); render(); return; }
+  paintRest();
+}, 1000);
+
+function paintRest(){
+  const el = document.getElementById("restbar"); if (!el) return;
+  const left = restLeft(), over = left <= 0, a = Math.abs(left);
+  el.classList.toggle("done", over);
+  el.querySelector(".tm").textContent = (over && left < 0 ? "+" : "") + Math.floor(a/60) + ":" + String(a%60).padStart(2,"0");
+  el.querySelector(".lb").textContent = over ? "Ready" : "Rest";
+  el.querySelector(".rp").style.width = over ? "100%" : (100 - left/S.rest.dur*100) + "%";
+}
+
+let actx = null;
+function beep(){
+  try{
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === "suspended") actx.resume();
+    [0, .18, .36].forEach((t, i) => {
+      const o = actx.createOscillator(), g = actx.createGain(), at = actx.currentTime + t;
+      o.frequency.value = i === 2 ? 1046 : 784; o.type = "sine";
+      g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(.22, at + .02);
+      g.gain.exponentialRampToValueAtTime(.001, at + .15);
+      o.connect(g); g.connect(actx.destination); o.start(at); o.stop(at + .16);
+    });
+  }catch(e){}
+  if (navigator.vibrate) navigator.vibrate([90, 60, 90]);
+}
+
+/* Screen wake lock — keeps the phone awake mid-session so the timer stays visible. */
+let wake = null;
+async function reqWake(){ try{ if ("wakeLock" in navigator && !wake) wake = await navigator.wakeLock.request("screen"); }catch(e){} }
+function releaseWake(){ try{ wake && wake.release(); }catch(e){} wake = null; }
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible"){ if (S.active) reqWake(); render(); }
+  else wake = null;
+});
+
+/* ==========================================================================
+   Views
+   ========================================================================== */
+const go = v => { S.view = v; S.detail = null; window.scrollTo(0,0); render(); };
+function toast(msg){ S.toast = msg; render(); clearTimeout(toast._t); toast._t = setTimeout(() => { S.toast = null; render(); }, 2000); }
+
+const ICON = {
+  today:'<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"/></svg>',
+  hist: '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 4v4h4"/><path d="M12 7.5V12l3 2"/></svg>',
+  set:  '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/></svg>',
+  check:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4.5 4.5L19 7"/></svg>',
+  x:    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  chev: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>'
+};
+
+function render(){
+  const app = document.getElementById("app");
+  app.className = S.view === "session" ? "" : "wide";
+  let html = "";
+  if      (S.view === "session")  html = viewSession();
+  else if (S.view === "history")  html = viewHistory();
+  else if (S.view === "settings") html = viewSettings();
+  else                            html = viewToday();
+
+  if (S.view !== "session") html += tabs();
+  if (S.rest && S.view === "session") html += restBar();
+  if (S.sheet) html += S.sheet();
+  if (S.toast) html += `<div class="toast">${esc(S.toast)}</div>`;
+  app.innerHTML = html;
+  if (S.rest && S.view === "session") paintRest();
+}
+
+const restBar = () => `<div class="rest" id="restbar">
+  <i class="rp"></i>
+  <div><div class="lb">Rest</div><div class="tm num">0:00</div></div>
+  <div class="grow"></div>
+  <button onclick="adjustRest(-15)">−15s</button>
+  <button onclick="adjustRest(15)">+15s</button>
+  <button onclick="skipRest()" style="color:var(--accent)">Skip</button>
+</div>`;
+
+const tabs = () => `<nav class="tabs">
+  ${[["today","Today",ICON.today],["history","History",ICON.hist],["settings","Settings",ICON.set]]
+    .map(([v,l,i]) => `<button class="tab ${S.view===v?"on":""}" onclick="go('${v}')">${i}<span>${l}</span></button>`).join("")}
+</nav>`;
+
+/* ---------- Today ---------- */
+function viewToday(){
+  const d = new Date(), sid = ROUTINE.week[d.getDay()], s = ROUTINE.sessions[sid], b = blockInfo();
+  const done = sessionList().some(x => x.date === today() && x.sessionId === sid);
+  const resume = S.active && S.active.date === today();
+  const mob = S.entries.find(e => e.id === "mob-" + today() && !e.deleted);
+  const streak = mobilityStreak();
+  const recent = sessionList().slice(0, 4);
+
+  return `<div class="scroll">
+    <div class="top">
+      <div>
+        <h1>${d.toLocaleDateString(undefined,{weekday:"long"})}</h1>
+        <p class="sub">${d.toLocaleDateString(undefined,{month:"long", day:"numeric"})}</p>
+      </div>
+      <button class="chip" onclick="go('settings')"><span class="dot"></span>Block <b>${b.block}</b> · wk ${b.week}</button>
+    </div>
+
+    ${DB.mode === "idb" ? "" : `<div class="card" style="margin-top:18px;border-color:var(--amber)">
+      <div style="font-weight:650">Limited storage</div>
+      <div class="sub">${DB.mode === "ls"
+        ? "IndexedDB is blocked here, so logs are going to localStorage. Workable, but export often."
+        : "No storage is available — anything you log is lost on reload. Open the hosted URL instead of the file."}</div>
+    </div>`}
+
+    ${S.entries.length ? "" : `<div class="card" style="margin-top:18px;border-color:color-mix(in srgb,var(--accent) 30%,transparent)">
+      <div style="font-weight:650">Bring your history in</div>
+      <div class="sub">Import <b>log.json</b> from the WorkoutTracker folder so past weights show up as you log.</div>
+      <button class="btn slim" onclick="importJSON()">Import log.json</button>
+    </div>`}
+
+    <div class="card hero" style="margin-top:18px">
+      <div class="kind">${s.kind === "rest" ? "Rest day" : "Today's session"}</div>
+      <h3>${esc(s.name)}</h3>
+      <div class="meta">${esc(s.tag || "")}</div>
+      ${s.detail ? `<div class="meta" style="margin-top:10px;color:var(--text-3)">${esc(s.detail)}</div>` : ""}
+      ${s.warmup ? `<div class="meta" style="margin-top:10px;color:var(--text-3)"><b style="color:var(--text-2)">Warm-up</b> · ${esc(s.warmup)}</div>` : ""}
+      ${s.kind === "rest" ? "" :
+        `<button class="btn" onclick="startSession('${sid}')">
+          ${resume && S.active.sessionId === sid ? "Resume session" : done ? "Log again" : "Start session"}
+        </button>`}
+      ${done ? `<div class="meta" style="margin-top:10px;color:var(--accent)">✓ Already logged today</div>` : ""}
+    </div>
+
+    <div class="card flush">
+      <div class="mob">
+        <button class="tick ${mob?"on":""}" onclick="toggleMobility('${today()}')">${ICON.check}</button>
+        <div class="grow">
+          <div style="font-weight:650;font-size:15.5px">Back + hip protocol</div>
+          <div class="streak">${streak ? `<b>${streak} day${streak>1?"s":""}</b> running` : "5–10 min · especially post-ride"}</div>
+        </div>
+      </div>
+    </div>
+
+    <h2>Log something else</h2>
+    <div class="picks">
+      ${Object.entries(ROUTINE.sessions).filter(([k,v]) => v.kind !== "rest" && k !== sid).map(([k,v]) =>
+        `<button class="pick" onclick="startSession('${k}')">
+           <div class="bar" style="background:${v.kind==="cardio"?"var(--cyan)":"var(--lime)"}"></div>
+           <div class="n">${esc(v.name)}</div><div class="d">${esc(v.tag||"")}</div>
+         </button>`).join("")}
+    </div>
+
+    ${recent.length ? `<h2>Recent</h2>${recent.map(hItem).join("")}` : ""}
+  </div>`;
+}
+
+/* ---------- Session ---------- */
+function viewSession(){
+  const a = S.active;
+  if (!a) { S.view = "today"; return viewToday(); }
+  if (a.kind === "cardio") return viewCardio();
+
+  const total = a.exercises.reduce((n,e) => n + e.sets.length, 0);
+  const done  = a.exercises.reduce((n,e) => n + e.sets.filter(s => s.done).length, 0);
+  const mins  = Math.floor((Date.now() - a.startedAt)/6e4);
+
+  return `<div class="shead">
+      <div class="between">
+        <div class="grow">
+          <div class="t">${esc(a.sessionName)}</div>
+          <div class="s">Block ${a.block} · ${done}/${total} sets · ${mins} min</div>
+        </div>
+        <button class="iconbtn" onclick="closeSession()">${ICON.x}</button>
+      </div>
+      <div class="prog"><i style="width:${total?done/total*100:0}%"></i></div>
+    </div>
+    <div class="scroll" style="padding-top:14px;padding-bottom:${S.rest?"140px":"40px"}">
+      ${a.exercises.map((e,i) => exCard(e,i)).join("")}
+      ${quickAdds()}
+      <button class="addex" onclick="sheetAddExercise()">+  Add exercise</button>
+      <button class="btn ghost" onclick="finishSession()">Finish session</button>
+    </div>`;
+}
+
+function exCard(ex, i){
+  const a = S.active, allDone = ex.sets.every(s => s.done), open = a.cur === i;
+  const t = ex.target;
+  const reps = t.lo === t.hi ? t.lo : `${t.lo}–${t.hi}`;
+  const lastTxt = ex.last
+    ? `<div class="last">Last ${fmtDay(ex.last.date)} · <b>${ex.last.sets.map(s => `${fmtW(s.weight)}×${s.reps}`).join(", ")}</b></div>`
+    : `<div class="last dim2">No history yet</div>`;
+
+  return `<div class="ex ${open?"active":""} ${allDone&&!open?"done":""}">
+    <button class="exh" onclick="focusEx(${i})">
+      <div class="grow">
+        <div class="nm">${esc(ex.name)}</div>
+        <div class="tg">${t.sets} × ${reps}${ex.perSide?" / side":""}${ex.optional?" · optional":""}</div>
+        ${lastTxt}
+        ${open && ex.note ? `<div class="last dim2" style="margin-top:8px">${esc(ex.note)}</div>` : ""}
+      </div>
+      ${allDone ? `<span class="pill ok">DONE</span>` : ex.main ? `<span class="pill main">MAIN</span>` : ""}
+    </button>
+    ${open ? `<div class="sets">${ex.sets.map((s,j) => setRow(ex,i,s,j)).join("")}
+       <button class="setnote" onclick="addSet(${i})" style="text-align:left;color:var(--text-3)">+ add a set</button>
+     </div>` : ""}
+  </div>`;
+}
+
+function setRow(ex, i, st, j){
+  const next = !st.done && ex.sets.findIndex(x => !x.done) === j;
+  const gh = ex.last && ex.last.sets[j];
+  const sug = st.suggested && !st.done ? "sug" : "";
+  return `<div class="set ${st.done?"ok":""} ${next?"on":""}">
+    <div class="ix num">${j+1}</div>
+    ${ex.bodyweight ? "" : `
+    <div class="fld ${sug}">
+      <input class="v num" type="number" inputmode="decimal" step="0.5" value="${st.weight ?? ""}"
+             placeholder="${gh ? fmtW(gh.weight) : "—"}" onfocus="this.select()"
+             oninput="setVal(${i},${j},'weight',this.value)"><span class="u">lb</span>
+    </div>`}
+    <div class="fld ${sug}">
+      <input class="v num" type="number" inputmode="numeric" value="${st.reps ?? ""}"
+             placeholder="${gh ? gh.reps : "—"}" onfocus="this.select()"
+             oninput="setVal(${i},${j},'reps',this.value)"><span class="u">${ex.perSide?"ea":"reps"}</span>
+    </div>
+    <button class="chk" onclick="${st.done?`unlogSet(${i},${j})`:`logSet(${i},${j})`}">${ICON.check}</button>
+  </div>
+  ${next ? `<div class="steps">
+    ${ex.bodyweight ? "" : `<button onclick="bump(${i},${j},'weight',-5)">−5 lb</button>
+    <button onclick="bump(${i},${j},'weight',5)">+5 lb</button>`}
+    <button onclick="bump(${i},${j},'reps',-1)">−1</button>
+    <button onclick="bump(${i},${j},'reps',1)">+1</button>
+    <input class="rpe num" type="number" inputmode="decimal" step="0.5" min="1" max="10"
+           value="${st.rpe ?? ""}" placeholder="RPE" onfocus="this.select()"
+           oninput="setVal(${i},${j},'rpe',this.value)">
+  </div>` : ""}`;
+}
+
+/* Exercises you've logged for this session before but that aren't in today's
+   list — substitutions you actually made, one tap to bring back. */
+function quickAdds(){
+  const a = S.active, present = new Set(a.exercises.map(e => e.id));
+  const seen = new Map();
+  sets().filter(e => e.sessionId === a.sessionId && !present.has(e.exerciseId) && e.date < a.date)
+        .forEach(e => {
+          const cur = seen.get(e.exerciseId);
+          if (!cur || e.date > cur.date) seen.set(e.exerciseId, {name:e.exerciseName, date:e.date});
+        });
+  const list = [...seen.entries()].sort((x,y) => y[1].date < x[1].date ? -1 : 1).slice(0, 6);
+  if (!list.length) return "";
+  return `<div style="margin-bottom:12px">
+    <div style="font-size:12px;font-weight:650;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:9px">Also logged here before</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      ${list.map(([id, v]) => `<button class="chip" onclick="quickAdd('${id}',${JSON.stringify(v.name).replace(/"/g,"&quot;")})">+ ${esc(v.name)}</button>`).join("")}
+    </div></div>`;
+}
+
+function quickAdd(id, name){
+  const prev = lastPerf(id, S.active.date);
+  const n = prev ? prev.sets.length : 3, reps = prev ? prev.sets[0].reps : 10;
+  S.active.exercises.push(buildExercise({id, name, A:{sets:n,lo:reps,hi:reps}, B:{sets:n,lo:reps,hi:reps}}, S.active.block, S.active.date));
+  S.active.cur = S.active.exercises.length - 1;
+  persistActive(); render();
+}
+
+/* Inputs are uncontrolled — writing straight to state avoids a re-render
+   that would steal focus mid-keystroke. */
+function setVal(i, j, k, v){ S.active.exercises[i].sets[j][k] = num(v); S.active.exercises[i].sets[j].suggested = false; persistActive(); }
+function bump(i, j, k, d){
+  const ex = S.active.exercises[i], st = ex.sets[j];
+  const ghost = ex.last && ex.last.sets[j] ? ex.last.sets[j][k] : null;   // adjust from last week, not from zero
+  st[k] = Math.max(0, (st[k] ?? ghost ?? 0) + d); st.suggested = false;
+  persistActive(); render();
+}
+function focusEx(i){ S.active.cur = S.active.cur === i ? -1 : i; render(); }
+function addSet(i){
+  const ex = S.active.exercises[i], lastSet = ex.sets[ex.sets.length-1] || {};
+  ex.sets.push({reps:lastSet.reps ?? ex.target.lo, weight:lastSet.weight ?? null, rpe:null, done:false, suggested:false, entryId:null});
+  persistActive(); render();
+}
+function closeSession(){
+  const any = S.active.exercises.some(e => e.sets.some(s => s.done)) || (S.active.cardio && S.active.cardio.durationMin != null);
+  if (any) { go("today"); toast("Session kept — resume from Today"); }
+  else { S.active = null; setMeta("active", null); releaseWake(); go("today"); }
+}
+
+/* ---------- Cardio ---------- */
+function viewCardio(){
+  const a = S.active, c = a.cardio, s = ROUTINE.sessions[a.sessionId];
+  const f = (lbl, key, unit, step) => `<div class="frow">
+      <label>${lbl}</label>
+      <input class="num" type="number" inputmode="decimal" step="${step||1}" value="${c[key] ?? ""}"
+             placeholder="—" onfocus="this.select()" oninput="S.active.cardio.${key}=num(this.value);persistActive()">
+      <span class="u">${unit}</span></div>`;
+  return `<div class="shead">
+      <div class="between">
+        <div class="grow"><div class="t">${esc(a.sessionName)}</div><div class="s">${esc(s.tag||"")}</div></div>
+        <button class="iconbtn" onclick="closeSession()">${ICON.x}</button>
+      </div>
+    </div>
+    <div class="scroll" style="padding-top:16px">
+      ${s.detail ? `<div class="card" style="color:var(--text-2);font-size:14px">${esc(s.detail)}</div>` : ""}
+      <div class="card">
+        ${f("Duration","durationMin","min")}
+        ${f("Distance","distanceMi","mi",.1)}
+        ${f("Avg power","avgPower","W")}
+        ${f("Avg HR","avgHr","bpm")}
+        ${f("RPE","rpe","/10",.5)}
+        <textarea class="note" placeholder="Notes" oninput="S.active.cardio.notes=this.value;persistActive()">${esc(c.notes)}</textarea>
+      </div>
+      <button class="btn" onclick="finishSession()">Save session</button>
+    </div>`;
+}
+
+/* ---------- History ---------- */
+const fmtW   = w => w == null ? "—" : (w % 1 ? w.toFixed(1) : w);
+const fmtDay = d => new Date(d+"T00:00:00").toLocaleDateString(undefined,{month:"short", day:"numeric"});
+
+function hItem(s){
+  const isCardio = s.type === "cardio";
+  let sm;
+  if (isCardio){
+    const e = s.entries[0];
+    sm = [e.durationMin && e.durationMin+" min", e.distanceMi && e.distanceMi+" mi", e.avgPower && e.avgPower+" W"].filter(Boolean).join(" · ");
+  } else {
+    const ex = new Set(s.entries.map(e => e.exerciseId));
+    const vol = s.entries.reduce((n,e) => n + (e.reps||0)*(e.weight||0), 0);
+    const pl = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+    sm = `${pl(ex.size,"exercise")} · ${pl(s.entries.length,"set")}${vol ? " · " + Math.round(vol).toLocaleString() + " lb" : ""}`;
+  }
+  const dt = new Date(s.date+"T00:00:00");
+  return `<button class="hitem" onclick="openDetail('${s.date}','${s.sessionId}')">
+    <div class="dt"><div class="d num">${dt.getDate()}</div><div class="m">${dt.toLocaleDateString(undefined,{month:"short"})}</div></div>
+    <div class="vline"></div>
+    <div class="grow"><div class="nm trunc">${esc(s.sessionName)}</div><div class="sm">${esc(sm)}</div></div>
+    <span style="color:var(--text-3)">${ICON.chev}</span>
+  </button>`;
+}
+
+function viewHistory(){
+  if (S.detail) return viewDetail();
+  const list = sessionList();
+  const byMonth = {};
+  list.forEach(s => { const k = new Date(s.date+"T00:00:00").toLocaleDateString(undefined,{month:"long", year:"numeric"}); (byMonth[k] ||= []).push(s); });
+  return `<div class="scroll">
+    <div class="top"><h1>History</h1></div>
+    ${list.length ? Object.entries(byMonth).map(([m, ss]) => `<h2>${m}</h2>${ss.map(hItem).join("")}`).join("")
+      : `<div class="empty">Nothing logged yet.<br>Sessions you complete will land here.</div>`}
+  </div>`;
+}
+
+function openDetail(date, sid){ S.view = "history"; S.detail = {date, sid}; window.scrollTo(0,0); render(); }
+
+function viewDetail(){
+  const s = sessionList().find(x => x.date === S.detail.date && x.sessionId === S.detail.sid);
+  if (!s) { S.detail = null; return viewHistory(); }
+  const dt = new Date(s.date+"T00:00:00");
+  let body;
+  if (s.type === "cardio"){
+    const e = s.entries[0];
+    body = `<div class="det">
+      ${[["Duration",e.durationMin,"min"],["Distance",e.distanceMi,"mi"],["Avg power",e.avgPower,"W"],["Avg HR",e.avgHr,"bpm"],["RPE",e.rpe,"/10"]]
+        .filter(r => r[1] != null).map(([l,v,u]) => `<div class="frow"><label>${l}</label><div class="num" style="font-weight:650">${v} <span class="dim2" style="font-size:12px">${u}</span></div></div>`).join("")}
+      ${e.notes ? `<div style="margin-top:12px;color:var(--text-2);font-size:14px">${esc(e.notes)}</div>` : ""}
+    </div>`;
+  } else {
+    const byEx = new Map();
+    [...s.entries].sort((a,b) => a.setIndex - b.setIndex).forEach(e => {
+      if (!byEx.has(e.exerciseId)) byEx.set(e.exerciseId, []);
+      byEx.get(e.exerciseId).push(e);
+    });
+    body = [...byEx.values()].map(rows => `<div class="det">
+      <div class="nm">${esc(rows[0].exerciseName)}</div>
+      ${rows.map(e => `<div class="dset">
+        <span class="ix num">${e.setIndex}</span>
+        <span class="w num">${fmtW(e.weight)} lb</span><span class="dim">×</span><span class="num">${e.reps}</span>
+        ${e.rpe != null ? `<span class="dim2" style="font-size:12.5px">RPE ${e.rpe}</span>` : ""}
+        ${e.notes ? `<span class="dim2" style="font-size:12.5px">· ${esc(e.notes)}</span>` : ""}
+      </div>`).join("")}
+    </div>`).join("");
+  }
+  return `<div class="scroll">
+    <div class="top">
+      <div><h1>${esc(s.sessionName)}</h1>
+        <p class="sub">${dt.toLocaleDateString(undefined,{weekday:"long", month:"long", day:"numeric"})}${s.entries[0].block ? " · Block " + s.entries[0].block : ""}</p></div>
+      <button class="iconbtn" onclick="S.detail=null;render()">${ICON.x}</button>
+    </div>
+    <div style="margin-top:16px">${body}</div>
+  </div>`;
+}
+
+/* ---------- Settings ---------- */
+function viewSettings(){
+  const b = blockInfo(), n = sets().length;
+  const rest = REST[b.block];
+  return `<div class="scroll">
+    <div class="top"><h1>Settings</h1></div>
+
+    <h2>Training block</h2>
+    <div class="card">
+      <div class="opts">
+        ${["A","B"].map(x => `<button class="opt ${b.block===x?"on":""}" onclick="setBlock('${x}')">Block ${x}</button>`).join("")}
+      </div>
+      <div class="sub" style="margin-top:12px">
+        ${b.block === "A" ? "Strength — mains 4×4–6, accessories 3×8–10." : "Hypertrophy — mains 3–4×8–12, accessories 3×12–15."}
+        Rest ${rest.main}s on mains, ${rest.acc}s on accessories.
+      </div>
+      <div class="sub" style="margin-top:8px;color:var(--text-3)">
+        Week ${b.week}, started ${fmtDay(b.start)}.${b.week >= 4 ? " Four weeks in — time to rotate." : ""}
+      </div>
+      <button class="btn ghost slim" onclick="setBlock(blockInfo().block, true)">Restart block at today</button>
+    </div>
+
+    <h2>Data</h2>
+    <div class="card">
+      <div class="between" style="padding-bottom:12px">
+        <span class="dim">Logged sets</span><b class="num">${n}</b>
+      </div>
+      <div class="between" style="border-top:1px solid var(--line-soft);padding-top:12px">
+        <span class="dim">Sessions</span><b class="num">${sessionList().length}</b>
+      </div>
+      <button class="btn ghost slim" onclick="exportJSON()">Export log.json</button>
+      <button class="btn ghost slim" onclick="importJSON()">Import log.json</button>
+      <div class="sub" style="margin-top:12px;color:var(--text-3)">
+        Data lives on this device for now. GitHub sync comes next — then phone and desktop stay in step automatically.
+      </div>
+    </div>
+
+    <h2>Back + hip protocol</h2>
+    <div class="card">
+      ${MOBILITY.map(m => `<div style="padding:7px 0;color:var(--text-2);font-size:14.5px">${esc(m)}</div>`).join("")}
+    </div>
+  </div>`;
+}
+
+async function setBlock(x, restart){
+  const cur = S.meta.block || {block:"A", start:today()};
+  await setMeta("block", {block:x, start:(restart || x !== cur.block) ? today() : cur.start});
+  render(); toast(`Block ${x}`);
+}
+
+/* ---------- Add-exercise sheet ---------- */
+function sheetAddExercise(){
+  const known = [...knownExercises().entries()];
+  S.sheet = () => `<div class="mask" onclick="if(event.target===this){S.sheet=null;render()}">
+    <div class="sheet">
+      <h4>Add exercise</h4>
+      <input type="text" id="exname" list="exlist" placeholder="Exercise name" autocomplete="off">
+      <datalist id="exlist">${known.map(([id,n]) => `<option value="${esc(n)}">`).join("")}</datalist>
+      <div class="row" style="gap:10px;margin-top:12px">
+        <div class="fld"><button onclick="stepIn('exsets',-1)">−</button>
+          <input class="v num" id="exsets" type="number" inputmode="numeric" value="3"><button onclick="stepIn('exsets',1)">+</button><span class="u">sets</span></div>
+        <div class="fld"><button onclick="stepIn('exreps',-1)">−</button>
+          <input class="v num" id="exreps" type="number" inputmode="numeric" value="10"><button onclick="stepIn('exreps',1)">+</button><span class="u">reps</span></div>
+      </div>
+      <button class="btn" onclick="confirmAddExercise()">Add</button>
+      <button class="btn ghost slim" onclick="S.sheet=null;render()">Cancel</button>
+    </div></div>`;
+  render();
+  setTimeout(() => document.getElementById("exname")?.focus(), 60);
+}
+function stepIn(id, d){ const el = document.getElementById(id); el.value = Math.max(1, (+el.value||0) + d); }
+
+function confirmAddExercise(){
+  const name = document.getElementById("exname").value.trim();
+  if (!name) return toast("Name the exercise");
+  const n = Math.max(1, +document.getElementById("exsets").value || 3);
+  const reps = Math.max(1, +document.getElementById("exreps").value || 10);
+  const match = [...knownExercises().entries()].find(([, v]) => v.toLowerCase() === name.toLowerCase());
+  const id = match ? match[0] : name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  const ex = {id, name:match ? match[1] : name, A:{sets:n,lo:reps,hi:reps}, B:{sets:n,lo:reps,hi:reps}};
+  S.active.exercises.push(buildExercise(ex, S.active.block, S.active.date));
+  S.active.cur = S.active.exercises.length - 1;
+  S.sheet = null; persistActive(); render();
+}
+
+/* ---------- import / export ---------- */
+function exportJSON(){
+  const blob = new Blob([JSON.stringify({schema:1, updated:new Date().toISOString(), entries:S.entries}, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "log.json"; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function importJSON(){
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = ".json,application/json";
+  inp.onchange = async () => {
+    const f = inp.files[0]; if (!f) return;
+    try{
+      const data = JSON.parse(await f.text());
+      const incoming = Array.isArray(data) ? data : data.entries || [];
+      let added = 0;
+      for (const e of incoming){
+        const cur = S.entries.find(x => x.id === e.id);
+        if (!cur || (e.ts || 0) > (cur.ts || 0)) { await saveEntry(e); if (!cur) added++; }
+      }
+      render(); toast(`Imported ${added} new entries`);
+    }catch(err){ toast("Could not read that file"); }
+  };
+  inp.click();
+}
+
+/* ==========================================================================
+   Boot
+   ========================================================================== */
+/* Offline shell. Only registers on a real origin — file:// has no SW support,
+   and calling it there throws. */
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+
+(async function boot(){
+  try{
+    await DB.open();
+    S.entries = await DB.all("entries");
+    (await DB.all("meta")).forEach(m => S.meta[m.k] = m.v);
+
+    S.rest = S.meta.rest || null;
+    if (S.rest && restLeft() < -30) { S.rest = null; setMeta("rest", null); }
+
+    const a = S.meta.active;
+    if (a && a.date === today()) { S.active = a; reqWake(); }
+    else if (a) setMeta("active", null);
+
+    render();
+  }catch(err){
+    // Never fail to a black screen — say what broke.
+    document.getElementById("app").innerHTML = `<div class="scroll">
+      <div class="top"><h1>Can't start</h1></div>
+      <div class="card" style="margin-top:16px;border-color:var(--red)">
+        <div style="font-weight:650;margin-bottom:8px">Storage is unavailable here</div>
+        <div class="sub">${esc(err && err.message || String(err))}</div>
+        <div class="sub" style="margin-top:12px">
+          This usually means the page was opened straight from a file rather than served
+          over http(s). Open it from the hosted URL instead.
+        </div>
+      </div></div>`;
+  }
+})();
+
+// expose handlers used from inline attributes
+Object.assign(window, {go, startSession, logSet, unlogSet, finishSession, closeSession, toggleMobility,
+  setVal, bump, focusEx, addSet, openDetail, setBlock, sheetAddExercise, confirmAddExercise, stepIn, quickAdd,
+  exportJSON, importJSON, adjustRest, skipRest, blockInfo, num, persistActive, S, DB});
+</script>

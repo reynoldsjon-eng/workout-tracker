@@ -170,7 +170,17 @@ h2{font-size:13px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
   background:var(--surface-3);text-align:center;font-size:14px;font-weight:650
 }
 .steps .rpe::placeholder{color:var(--text-3);font-size:12px}
-.setnote{font-size:12.5px;color:var(--text-3);padding:8px 6px 2px;width:100%;text-align:left}
+.setnote{font-size:12.5px;color:var(--text-3);padding:8px 6px 2px;text-align:left}
+.steps .notebtn{flex:none;width:44px;display:grid;place-items:center}
+.steps .notebtn.has{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.setnotetext{
+  font-size:13px;color:var(--text-2);padding:7px 10px 7px 26px;line-height:1.4;
+  border-left:2px solid color-mix(in srgb,var(--accent) 45%,transparent);margin:0 4px 6px 8px
+}
+.exnote{
+  font-size:13.5px;color:var(--text-2);line-height:1.45;padding:11px 13px;margin-top:10px;
+  background:var(--surface);border:1px solid var(--line-soft);border-radius:10px;white-space:pre-wrap
+}
 
 .addex{width:100%;padding:14px;border-radius:var(--r);border:1px dashed var(--line);color:var(--text-2);font-weight:600;font-size:14.5px;margin-bottom:12px}
 .addex:active{border-color:var(--accent);color:var(--accent)}
@@ -566,6 +576,17 @@ function blockInfo(){
 const target = (ex, blk) => ex[blk] || ex.A;
 const sets   = () => S.entries.filter(e => e.type === "set" && !e.deleted);
 
+/* Distance is km. Entries written before the switch used `distanceMi`; those
+   numbers are read as-is rather than converted — they were typed as km into a
+   mislabelled field. */
+const distKm = e => e.distanceKm ?? e.distanceMi ?? null;
+
+/** Free-text note attached to one exercise within one session. */
+const exNote = (date, sessionId, exerciseId) => {
+  const e = S.entries.find(x => x.id === `exnote-${date}-${sessionId}-${exerciseId}` && !x.deleted);
+  return e ? e.text : "";
+};
+
 /** Most recent session's sets for an exercise, strictly before `beforeDate`. */
 function lastPerf(exerciseId, beforeDate){
   const rows = sets().filter(e => e.exerciseId === exerciseId && e.date < beforeDate);
@@ -588,10 +609,13 @@ function sessionList(){
   for (const e of S.entries){
     if (e.deleted || e.type === "mobility") continue;
     const key = e.date + "|" + e.sessionId;
-    if (!map.has(key)) map.set(key, {date:e.date, sessionId:e.sessionId, sessionName:e.sessionName, type:e.type, entries:[]});
+    if (!map.has(key)) map.set(key, {date:e.date, sessionId:e.sessionId, sessionName:e.sessionName, entries:[]});
     map.get(key).entries.push(e);
   }
-  return [...map.values()].sort((a,b) => b.date < a.date ? -1 : 1);
+  // Type comes from the contents, not from whichever entry happened to be first.
+  const out = [...map.values()].map(s => ({...s, type: s.entries.some(e => e.type === "cardio") ? "cardio" : "strength"}));
+  return out.filter(s => s.entries.some(e => e.type === "set" || e.type === "cardio"))
+            .sort((a,b) => b.date < a.date ? -1 : 1);
 }
 
 const knownExercises = () => {
@@ -613,7 +637,7 @@ function buildExercise(ex, blk, date){
       return {
         reps:   ls ? ls.reps   : t.lo,
         weight: ls ? ls.weight : (ex.bodyweight ? 0 : null),
-        rpe:null, done:false, suggested:!!ls, entryId:null
+        rpe:null, notes:"", done:false, suggested:!!ls, entryId:null   // notes never carry over
       };
     })
   };
@@ -626,7 +650,7 @@ function startSession(id){
   S.active = {
     sessionId:id, sessionName:s.name, kind:s.kind, date, block:blk, startedAt:Date.now(),
     exercises: (s.exercises || []).map(ex => buildExercise(ex, blk, date)),
-    cardio: s.kind === "cardio" ? {durationMin:null, distanceMi:null, avgPower:null, avgHr:null, rpe:null, notes:""} : null,
+    cardio: s.kind === "cardio" ? {durationMin:null, distanceKm:null, avgPower:null, avgHr:null, rpe:null, notes:""} : null,
     cur:0
   };
   reqWake(); persistActive(); go("session");
@@ -651,7 +675,7 @@ async function logSet(ei, si){
     id, ts:Date.now(), type:"set",
     date:S.active.date, sessionId:S.active.sessionId, sessionName:S.active.sessionName,
     block:S.active.block, exerciseId:ex.id, exerciseName:ex.name, setIndex:si + 1,
-    reps:st.reps, weight:st.weight, unit:"lb", rpe:st.rpe, notes:"", deleted:false
+    reps:st.reps, weight:st.weight, unit:"lb", rpe:st.rpe, notes:st.notes || "", deleted:false
   });
   st.done = true; st.entryId = id; st.suggested = false;
 
@@ -761,7 +785,8 @@ const ICON = {
   set:  '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/></svg>',
   check:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4.5 4.5L19 7"/></svg>',
   x:    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
-  chev: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>'
+  chev: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
+  note: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16M4 11h16M4 16.5h9"/></svg>'
 };
 
 function render(){
@@ -906,6 +931,7 @@ function viewSession(){
 
 function exCard(ex, i){
   const a = S.active, allDone = ex.sets.every(s => s.done), open = a.cur === i;
+  const note = exNote(a.date, a.sessionId, ex.id);
   const t = ex.target;
   const reps = t.lo === t.hi ? t.lo : `${t.lo}–${t.hi}`;
   const lastTxt = ex.last
@@ -923,8 +949,15 @@ function exCard(ex, i){
       ${allDone ? `<span class="pill ok">DONE</span>` : ex.main ? `<span class="pill main">MAIN</span>` : ""}
     </button>
     ${open ? `<div class="sets">${ex.sets.map((s,j) => setRow(ex,i,s,j)).join("")}
-       <button class="setnote" onclick="addSet(${i})" style="text-align:left;color:var(--text-3)">+ add a set</button>
+       <div class="row" style="gap:10px;padding-top:8px">
+         <button class="setnote" onclick="addSet(${i})" style="flex:1;color:var(--text-3)">+ add a set</button>
+         <button class="setnote" onclick="sheetNote('ex',${i})" style="flex:none;color:${note?"var(--accent)":"var(--text-3)"}">
+           ${note ? "Edit note" : "+ note"}
+         </button>
+       </div>
+       ${note ? `<div class="exnote" onclick="sheetNote('ex',${i})">${esc(note)}</div>` : ""}
      </div>` : ""}
+    ${!open && note ? `<div class="exnote" style="margin:0 16px 14px">${esc(note)}</div>` : ""}
   </div>`;
 }
 
@@ -955,7 +988,9 @@ function setRow(ex, i, st, j){
     <input class="rpe num" type="number" inputmode="decimal" step="0.5" min="1" max="10"
            value="${st.rpe ?? ""}" placeholder="RPE" onfocus="this.select()"
            oninput="setVal(${i},${j},'rpe',this.value)">
-  </div>` : ""}`;
+    <button class="notebtn ${st.notes?"has":""}" onclick="sheetNote('set',${i},${j})" title="Note">${ICON.note}</button>
+  </div>` : ""}
+  ${st.notes ? `<div class="setnotetext" onclick="sheetNote('set',${i},${j})">${esc(st.notes)}</div>` : ""}`;
 }
 
 /* Exercises you've logged for this session before but that aren't in today's
@@ -975,6 +1010,51 @@ function quickAdds(){
     <div style="display:flex;flex-wrap:wrap;gap:8px">
       ${list.map(([id, v]) => `<button class="chip" onclick="quickAdd('${id}',${JSON.stringify(v.name).replace(/"/g,"&quot;")})">+ ${esc(v.name)}</button>`).join("")}
     </div></div>`;
+}
+
+/* Notes. Exercise-level notes are their own entry type keyed by
+   date+session+exercise, so they merge across devices like everything else.
+   Set-level notes live on the set entry itself. */
+function sheetNote(kind, i, j){
+  const a = S.active, ex = a.exercises[i];
+  const cur = kind === "ex" ? exNote(a.date, a.sessionId, ex.id) : (ex.sets[j].notes || "");
+  const title = kind === "ex" ? ex.name : `${ex.name} · set ${j+1}`;
+  S.sheet = () => `<div class="mask" onclick="if(event.target===this){S.sheet=null;render()}">
+    <div class="sheet">
+      <h4 class="trunc">${esc(title)}</h4>
+      <textarea class="note" id="note-text" rows="4" placeholder="${kind==="ex"
+        ? "How it felt, form cues, niggles…" : "e.g. failed at 6, belt on"}">${esc(cur)}</textarea>
+      <button class="btn" onclick="saveNote('${kind}',${i},${j ?? -1})">Save</button>
+      ${cur ? `<button class="btn ghost slim" onclick="saveNote('${kind}',${i},${j ?? -1},true)">Clear note</button>` : ""}
+      <button class="btn ghost slim" onclick="S.sheet=null;render()">Cancel</button>
+    </div></div>`;
+  render();
+  setTimeout(() => { const t = document.getElementById("note-text"); if (t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }, 60);
+}
+
+async function saveNote(kind, i, j, clear){
+  const a = S.active, ex = a.exercises[i];
+  const text = clear ? "" : (document.getElementById("note-text").value || "").trim();
+  S.sheet = null;
+
+  if (kind === "ex"){
+    await saveEntry({
+      id:`exnote-${a.date}-${a.sessionId}-${ex.id}`, ts:Date.now(), type:"exnote",
+      date:a.date, sessionId:a.sessionId, sessionName:a.sessionName,
+      exerciseId:ex.id, exerciseName:ex.name, text, deleted:!text
+    });
+  } else {
+    const st = ex.sets[j];
+    st.notes = text;
+    // If the set is already logged, push the note onto its existing entry.
+    if (st.entryId){
+      const e = S.entries.find(x => x.id === st.entryId);
+      if (e) await saveEntry({...e, notes:text, ts:Date.now()});
+    }
+    persistActive();
+  }
+  syncSoon("note", 8000);
+  render();
 }
 
 function quickAdd(id, name){
@@ -1024,7 +1104,7 @@ function viewCardio(){
       ${s.detail ? `<div class="card" style="color:var(--text-2);font-size:14px">${esc(s.detail)}</div>` : ""}
       <div class="card">
         ${f("Duration","durationMin","min")}
-        ${f("Distance","distanceMi","mi",.1)}
+        ${f("Distance","distanceKm","km",.1)}
         ${f("Avg power","avgPower","W")}
         ${f("Avg HR","avgHr","bpm")}
         ${f("RPE","rpe","/10",.5)}
@@ -1043,12 +1123,14 @@ function hItem(s){
   let sm;
   if (isCardio){
     const e = s.entries[0];
-    sm = [e.durationMin && e.durationMin+" min", e.distanceMi && e.distanceMi+" mi", e.avgPower && e.avgPower+" W"].filter(Boolean).join(" · ");
+    sm = [e.durationMin && e.durationMin+" min", distKm(e) && distKm(e)+" km", e.avgPower && e.avgPower+" W"].filter(Boolean).join(" · ");
   } else {
-    const ex = new Set(s.entries.map(e => e.exerciseId));
-    const vol = s.entries.reduce((n,e) => n + (e.reps||0)*(e.weight||0), 0);
+    const rows = s.entries.filter(e => e.type === "set");
+    const ex = new Set(rows.map(e => e.exerciseId));
+    const vol = rows.reduce((n,e) => n + (e.reps||0)*(e.weight||0), 0);
+    const notes = s.entries.filter(e => e.type === "exnote").length + rows.filter(e => e.notes).length;
     const pl = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
-    sm = `${pl(ex.size,"exercise")} · ${pl(s.entries.length,"set")}${vol ? " · " + Math.round(vol).toLocaleString() + " lb" : ""}`;
+    sm = `${pl(ex.size,"exercise")} · ${pl(rows.length,"set")}${vol ? " · " + Math.round(vol).toLocaleString() + " lb" : ""}${notes ? " · " + pl(notes,"note") : ""}`;
   }
   const dt = new Date(s.date+"T00:00:00");
   return `<button class="hitem" onclick="openDetail('${s.date}','${s.sessionId}')">
@@ -1081,25 +1163,29 @@ function viewDetail(){
   if (s.type === "cardio"){
     const e = s.entries[0];
     body = `<div class="det">
-      ${[["Duration",e.durationMin,"min"],["Distance",e.distanceMi,"mi"],["Avg power",e.avgPower,"W"],["Avg HR",e.avgHr,"bpm"],["RPE",e.rpe,"/10"]]
+      ${[["Duration",e.durationMin,"min"],["Distance",distKm(e),"km"],["Avg power",e.avgPower,"W"],["Avg HR",e.avgHr,"bpm"],["RPE",e.rpe,"/10"]]
         .filter(r => r[1] != null).map(([l,v,u]) => `<div class="frow"><label>${l}</label><div class="num" style="font-weight:650">${v} <span class="dim2" style="font-size:12px">${u}</span></div></div>`).join("")}
       ${e.notes ? `<div style="margin-top:12px;color:var(--text-2);font-size:14px">${esc(e.notes)}</div>` : ""}
     </div>`;
   } else {
     const byEx = new Map();
-    [...s.entries].sort((a,b) => a.setIndex - b.setIndex).forEach(e => {
+    [...s.entries].filter(e => e.type === "set").sort((a,b) => a.setIndex - b.setIndex).forEach(e => {
       if (!byEx.has(e.exerciseId)) byEx.set(e.exerciseId, []);
       byEx.get(e.exerciseId).push(e);
     });
-    body = [...byEx.values()].map(rows => `<div class="det">
-      <div class="nm">${esc(rows[0].exerciseName)}</div>
-      ${rows.map(e => `<div class="dset">
-        <span class="ix num">${e.setIndex}</span>
-        <span class="w num">${fmtW(e.weight)} lb</span><span class="dim">×</span><span class="num">${e.reps}</span>
-        ${e.rpe != null ? `<span class="dim2" style="font-size:12.5px">RPE ${e.rpe}</span>` : ""}
-        ${e.notes ? `<span class="dim2" style="font-size:12.5px">· ${esc(e.notes)}</span>` : ""}
-      </div>`).join("")}
-    </div>`).join("");
+    body = [...byEx.entries()].map(([exId, rows]) => {
+      const n = exNote(s.date, s.sessionId, exId);
+      return `<div class="det">
+        <div class="nm">${esc(rows[0].exerciseName)}</div>
+        ${rows.map(e => `<div class="dset">
+          <span class="ix num">${e.setIndex}</span>
+          <span class="w num">${fmtW(e.weight)} lb</span><span class="dim">×</span><span class="num">${e.reps}</span>
+          ${e.rpe != null ? `<span class="dim2" style="font-size:12.5px">RPE ${e.rpe}</span>` : ""}
+          ${e.notes ? `<span class="dim2" style="font-size:12.5px">· ${esc(e.notes)}</span>` : ""}
+        </div>`).join("")}
+        ${n ? `<div class="exnote">${esc(n)}</div>` : ""}
+      </div>`;
+    }).join("");
   }
   return `<div class="scroll">
     <div class="top">
@@ -1333,5 +1419,5 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
 Object.assign(window, {go, startSession, logSet, unlogSet, finishSession, closeSession, toggleMobility,
   setVal, bump, focusEx, addSet, openDetail, setBlock, sheetAddExercise, confirmAddExercise, stepIn, quickAdd,
   exportJSON, importJSON, adjustRest, skipRest, blockInfo, num, persistActive, S, DB,
-  Sync, connectSync, disconnectSync, mergeEntries});
+  Sync, connectSync, disconnectSync, mergeEntries, sheetNote, saveNote, exNote, distKm});
 </script>

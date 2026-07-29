@@ -2,3 +2,5 @@
 Icon
 *.icloud
 _test-*.html
+_log-*.json
+log.json

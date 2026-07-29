@@ -399,6 +399,164 @@ async function saveEntry(e){
   await DB.put("entries", e);
 }
 
+/* ==========================================================================
+   Sync — a private GitHub repo holds log.json and is the source of truth
+   across devices. The log being append-only is what makes this safe: merging
+   two devices is a union keyed on entry id, with the newer ts winning, so
+   nothing is ever lost to a race. A stale-sha rejection just means refetch
+   and retry.
+
+   The token lives in localStorage only. It is never written to the entry log,
+   never exported, and never committed.
+   ========================================================================== */
+const GH_API = "https://api.github.com";
+
+function b64enc(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000)      // chunked: spread blows the stack on big logs
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+function b64dec(b64){
+  const bin = atob(String(b64).replace(/\s/g, ""));    // GitHub wraps base64 in newlines
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+/** Union by id; newer ts wins. Tombstones ride along like any other entry. */
+function mergeEntries(a, b){
+  const m = new Map();
+  for (const e of a) if (e && e.id) m.set(e.id, e);
+  for (const e of b){
+    if (!e || !e.id) continue;
+    const cur = m.get(e.id);
+    if (!cur || (e.ts || 0) > (cur.ts || 0)) m.set(e.id, e);
+  }
+  return [...m.values()].sort((x, y) => (x.ts || 0) - (y.ts || 0));
+}
+
+const Sync = {
+  state: {busy:false, last:null, error:null, pending:false},
+
+  get cfg(){ try { return JSON.parse(localStorage.getItem("wt.sync") || "null"); } catch(e){ return null; } },
+  set cfg(v){ try { v ? localStorage.setItem("wt.sync", JSON.stringify(v)) : localStorage.removeItem("wt.sync"); } catch(e){} },
+  get on(){ const c = this.cfg; return !!(c && c.token && c.owner && c.repo); },
+
+  async api(path, opts = {}){
+    const c = this.cfg;
+    if (!c) throw new Error("Not connected");
+    const r = await fetch(GH_API + path, {
+      ...opts,
+      cache: "no-store",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: "Bearer " + c.token,
+        "X-GitHub-Api-Version": "2022-11-28",
+        ...(opts.body ? {"Content-Type": "application/json"} : {}),
+        ...(opts.headers || {})
+      }
+    });
+    return r;
+  },
+
+  async err(r){
+    let d = "";
+    try { d = (await r.json()).message || ""; } catch(e){}
+    if (r.status === 401) return "Bad token — it may have expired or been revoked.";
+    if (r.status === 403) return "Token lacks Contents: read and write on this repo.";
+    if (r.status === 404) return "Repo not found, or the token can't see it.";
+    return `GitHub ${r.status}${d ? " — " + d : ""}`;
+  },
+
+  async pull(){
+    const c = this.cfg;
+    const r = await this.api(`/repos/${c.owner}/${c.repo}/contents/${c.path}?ref=${c.branch}`);
+    if (r.status === 404){
+      // Ambiguous: log.json not created yet (fine, first sync) vs repo gone or
+      // token revoked (not fine). Ask about the repo itself to tell them apart.
+      const probe = await this.api(`/repos/${c.owner}/${c.repo}`);
+      if (!probe.ok) throw new Error(await this.err(probe));
+      return {entries: [], sha: null};
+    }
+    if (!r.ok) throw new Error(await this.err(r));
+    const j = await r.json();
+    let data;
+    try { data = JSON.parse(b64dec(j.content)); }
+    catch(e){ throw new Error("log.json in the repo isn't valid JSON"); }
+    return {entries: Array.isArray(data) ? data : (data.entries || []), sha: j.sha};
+  },
+
+  async push(entries, sha, msg){
+    const c = this.cfg;
+    const body = {
+      message: msg,
+      content: b64enc(JSON.stringify({schema:1, updated:new Date().toISOString(), entries}, null, 2)),
+      branch: c.branch
+    };
+    if (sha) body.sha = sha;
+    const r = await this.api(`/repos/${c.owner}/${c.repo}/contents/${c.path}`, {method:"PUT", body:JSON.stringify(body)});
+    if (r.status === 409 || r.status === 422) return {conflict:true};   // someone else moved the file
+    if (!r.ok) throw new Error(await this.err(r));
+    return {ok:true};
+  },
+
+  async run(reason){
+    if (!this.on || this.state.busy) return;
+    if (!navigator.onLine){ this.state.pending = true; renderSafe(); return; }
+
+    this.state.busy = true; this.state.error = null; renderSafe();
+    try{
+      for (let attempt = 0; attempt < 3; attempt++){
+        const {entries: remote, sha} = await this.pull();
+        const merged = mergeEntries(S.entries, remote);
+
+        // Adopt anything the remote knew that we didn't.
+        const mine = new Map(S.entries.map(e => [e.id, e]));
+        for (const e of merged){
+          const cur = mine.get(e.id);
+          if (!cur || (e.ts || 0) > (cur.ts || 0)) await saveEntry(e);
+        }
+
+        const rmap = new Map(remote.map(e => [e.id, e.ts || 0]));
+        const same = merged.length === remote.length && merged.every(e => rmap.get(e.id) === (e.ts || 0));
+        if (same){ this.state.pending = false; break; }
+
+        const res = await this.push(merged, sha, `log: ${merged.length} entries (${reason || "sync"})`);
+        if (res.conflict) continue;                                  // refetch and retry
+        this.state.pending = false;
+        break;
+      }
+      this.state.last = Date.now();
+      await setMeta("lastSync", this.state.last);
+    }catch(err){
+      this.state.error = (err && err.message) || String(err);
+      this.state.pending = true;
+    }finally{
+      this.state.busy = false;
+      renderSafe();
+    }
+  }
+};
+
+/* Sync lands asynchronously; don't yank a field the user is typing in. */
+function renderSafe(){
+  const a = document.activeElement;
+  if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA")) return;
+  render();
+}
+
+/* Batched — one commit per session beats one per set. */
+let _syncT = null;
+function syncSoon(reason, delay = 30000){
+  if (!Sync.on) return;
+  clearTimeout(_syncT);
+  _syncT = setTimeout(() => Sync.run(reason), delay);
+}
+
+window.addEventListener("online", () => Sync.run("back online"));
+
 /* ---------- derived ---------- */
 function blockInfo(){
   const b = S.meta.block || {block:"A", start:today()};
@@ -503,7 +661,7 @@ async function logSet(ei, si){
     if (nxt >= 0) S.active.cur = nxt;
   }
   startRest(restFor(ex));
-  setMeta("active", S.active); render();
+  setMeta("active", S.active); syncSoon("mid-session"); render();
 }
 
 async function unlogSet(ei, si){
@@ -526,15 +684,17 @@ async function finishSession(){
       ...c, deleted:false
     });
   }
+  const name = S.active.sessionName;
   S.active = null; S.rest = null;
   await setMeta("active", null); await setMeta("rest", null);
   releaseWake(); go("today"); toast("Session saved");
+  clearTimeout(_syncT); Sync.run("after " + name);
 }
 
 async function toggleMobility(date){
   const id = "mob-" + date, cur = S.entries.find(e => e.id === id);
   await saveEntry({id, ts:Date.now(), type:"mobility", date, deleted:cur ? !cur.deleted : false});
-  render();
+  syncSoon("mobility", 8000); render();
 }
 
 /* ==========================================================================
@@ -585,8 +745,8 @@ let wake = null;
 async function reqWake(){ try{ if ("wakeLock" in navigator && !wake) wake = await navigator.wakeLock.request("screen"); }catch(e){} }
 function releaseWake(){ try{ wake && wake.release(); }catch(e){} wake = null; }
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible"){ if (S.active) reqWake(); render(); }
-  else wake = null;
+  if (document.visibilityState === "visible"){ if (S.active) reqWake(); render(); Sync.run("foreground"); }
+  else { wake = null; if (Sync.on) { clearTimeout(_syncT); Sync.run("backgrounded"); } }
 });
 
 /* ==========================================================================
@@ -630,6 +790,17 @@ const restBar = () => `<div class="rest" id="restbar">
   <button onclick="skipRest()" style="color:var(--accent)">Skip</button>
 </div>`;
 
+function syncChip(){
+  const st = Sync.state;
+  if (!Sync.on) return `<button class="chip" onclick="go('settings')" style="color:var(--text-3)">Not syncing</button>`;
+  const [txt, col] = st.busy ? ["Syncing…", "var(--text-2)"]
+    : st.error   ? ["Sync failed", "var(--red)"]
+    : st.pending ? ["Pending", "var(--amber)"]
+    : ["Synced", "var(--accent)"];
+  return `<button class="chip" onclick="go('settings')" style="color:${col}">
+    <span class="dot" style="background:${col}"></span>${txt}</button>`;
+}
+
 const tabs = () => `<nav class="tabs">
   ${[["today","Today",ICON.today],["history","History",ICON.hist],["settings","Settings",ICON.set]]
     .map(([v,l,i]) => `<button class="tab ${S.view===v?"on":""}" onclick="go('${v}')">${i}<span>${l}</span></button>`).join("")}
@@ -650,7 +821,10 @@ function viewToday(){
         <h1>${d.toLocaleDateString(undefined,{weekday:"long"})}</h1>
         <p class="sub">${d.toLocaleDateString(undefined,{month:"long", day:"numeric"})}</p>
       </div>
-      <button class="chip" onclick="go('settings')"><span class="dot"></span>Block <b>${b.block}</b> · wk ${b.week}</button>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">
+        <button class="chip" onclick="go('settings')"><span class="dot"></span>Block <b>${b.block}</b> · wk ${b.week}</button>
+        ${syncChip()}
+      </div>
     </div>
 
     ${DB.mode === "idb" ? "" : `<div class="card" style="margin-top:18px;border-color:var(--amber)">
@@ -959,6 +1133,9 @@ function viewSettings(){
       <button class="btn ghost slim" onclick="setBlock(blockInfo().block, true)">Restart block at today</button>
     </div>
 
+    <h2>Sync</h2>
+    ${viewSync()}
+
     <h2>Data</h2>
     <div class="card">
       <div class="between" style="padding-bottom:12px">
@@ -970,7 +1147,7 @@ function viewSettings(){
       <button class="btn ghost slim" onclick="exportJSON()">Export log.json</button>
       <button class="btn ghost slim" onclick="importJSON()">Import log.json</button>
       <div class="sub" style="margin-top:12px;color:var(--text-3)">
-        Data lives on this device for now. GitHub sync comes next — then phone and desktop stay in step automatically.
+        Export writes a copy you can drop in the iCloud folder. Sync is the live path.
       </div>
     </div>
 
@@ -979,6 +1156,67 @@ function viewSettings(){
       ${MOBILITY.map(m => `<div style="padding:7px 0;color:var(--text-2);font-size:14.5px">${esc(m)}</div>`).join("")}
     </div>
   </div>`;
+}
+
+function viewSync(){
+  const c = Sync.cfg, st = Sync.state;
+  if (!Sync.on){
+    return `<div class="card">
+      <div class="sub" style="margin-bottom:14px">
+        Point this at a <b>private</b> repo holding <b>log.json</b>. Every device that connects
+        to it stays in step. Your token is stored on this device only.
+      </div>
+      <div class="frow"><label>Owner</label><input id="sy-owner" type="text" placeholder="reynoldsjon-eng" value="${esc((c&&c.owner)||"reynoldsjon-eng")}" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+      <div class="frow"><label>Repo</label><input id="sy-repo" type="text" placeholder="workout-data" value="${esc((c&&c.repo)||"workout-data")}" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+      <div class="frow"><label>Token</label><input id="sy-token" type="password" placeholder="github_pat_..." autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+      <button class="btn" onclick="connectSync()">Connect</button>
+      <div class="sub" style="margin-top:14px;color:var(--text-3)">
+        Make a <b>fine-grained</b> token on GitHub: Settings → Developer settings → Personal access
+        tokens → Fine-grained. Give it access to only that one repo, with
+        <b>Repository permissions → Contents: Read and write</b>.
+      </div>
+    </div>`;
+  }
+  const when = st.last ? new Date(st.last).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}) : "—";
+  const status = st.busy ? ["Syncing…","var(--text-2)"]
+    : st.error ? [st.error,"var(--red)"]
+    : st.pending ? ["Changes waiting to upload","var(--amber)"]
+    : [`Up to date · ${when}`,"var(--accent)"];
+  return `<div class="card">
+    <div class="between" style="padding-bottom:12px">
+      <span class="dim trunc">${esc(c.owner)}/${esc(c.repo)}</span>
+      <span class="dim2" style="font-size:12.5px">${esc(c.path)}</span>
+    </div>
+    <div style="border-top:1px solid var(--line-soft);padding-top:12px;color:${status[1]};font-size:14px;font-weight:600">
+      ${esc(status[0])}
+    </div>
+    <button class="btn slim" onclick="Sync.run('manual')" ${st.busy?"disabled":""}>Sync now</button>
+    <button class="btn ghost slim" onclick="disconnectSync()">Disconnect</button>
+  </div>`;
+}
+
+async function connectSync(){
+  const owner = document.getElementById("sy-owner").value.trim();
+  const repo  = document.getElementById("sy-repo").value.trim();
+  const token = document.getElementById("sy-token").value.trim();
+  if (!owner || !repo || !token) return toast("Fill in all three");
+
+  Sync.cfg = {owner, repo, token, path:"log.json", branch:"main"};
+  const r = await Sync.api(`/repos/${owner}/${repo}`);
+  if (!r.ok){ const m = await Sync.err(r); Sync.cfg = null; render(); return toast(m); }
+  const info = await r.json();
+  if (!info.private && !confirm("That repo is PUBLIC — your training log would be visible to anyone. Connect anyway?")){
+    Sync.cfg = null; render(); return;
+  }
+  Sync.cfg = {owner, repo, token, path:"log.json", branch:info.default_branch || "main"};
+  toast("Connected"); render();
+  await Sync.run("first sync");
+}
+
+function disconnectSync(){
+  if (!confirm("Disconnect sync? Your logs stay on this device; the token is forgotten.")) return;
+  Sync.cfg = null; Sync.state = {busy:false, last:null, error:null, pending:false};
+  render(); toast("Disconnected");
 }
 
 async function setBlock(x, restart){
@@ -1038,12 +1276,14 @@ function importJSON(){
     try{
       const data = JSON.parse(await f.text());
       const incoming = Array.isArray(data) ? data : data.entries || [];
+      const mine = new Map(S.entries.map(e => [e.id, e]));
       let added = 0;
-      for (const e of incoming){
-        const cur = S.entries.find(x => x.id === e.id);
+      for (const e of mergeEntries(S.entries, incoming)){
+        const cur = mine.get(e.id);
         if (!cur || (e.ts || 0) > (cur.ts || 0)) { await saveEntry(e); if (!cur) added++; }
       }
       render(); toast(`Imported ${added} new entries`);
+      Sync.run("after import");
     }catch(err){ toast("Could not read that file"); }
   };
   inp.click();
@@ -1071,7 +1311,9 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
     if (a && a.date === today()) { S.active = a; reqWake(); }
     else if (a) setMeta("active", null);
 
+    Sync.state.last = S.meta.lastSync || null;
     render();
+    Sync.run("launch");
   }catch(err){
     // Never fail to a black screen — say what broke.
     document.getElementById("app").innerHTML = `<div class="scroll">
@@ -1090,5 +1332,6 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
 // expose handlers used from inline attributes
 Object.assign(window, {go, startSession, logSet, unlogSet, finishSession, closeSession, toggleMobility,
   setVal, bump, focusEx, addSet, openDetail, setBlock, sheetAddExercise, confirmAddExercise, stepIn, quickAdd,
-  exportJSON, importJSON, adjustRest, skipRest, blockInfo, num, persistActive, S, DB});
+  exportJSON, importJSON, adjustRest, skipRest, blockInfo, num, persistActive, S, DB,
+  Sync, connectSync, disconnectSync, mergeEntries});
 </script>

@@ -95,6 +95,13 @@ h2{font-size:13px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
 .pick:active{background:var(--surface-2)}
 .bar{width:26px;height:3px;border-radius:2px;background:var(--accent);margin-bottom:10px;opacity:.9}
 
+/* ---------- up tomorrow ---------- */
+.up{display:flex;align-items:center;gap:14px;padding:15px 18px}
+.up .stripe{width:3px;align-self:stretch;min-height:38px;border-radius:2px;background:var(--accent);flex:none;opacity:.9}
+.up .lbl{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text-3)}
+.up .nm{font-weight:650;font-size:16px;letter-spacing:-.01em;margin-top:3px}
+.up .tg{color:var(--text-2);font-size:13px;margin-top:2px}
+
 /* ---------- mobility ---------- */
 .mob{display:flex;align-items:center;gap:14px;padding:16px 18px}
 .tick{
@@ -181,6 +188,14 @@ h2{font-size:13px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
   font-size:13.5px;color:var(--text-2);line-height:1.45;padding:11px 13px;margin-top:10px;
   background:var(--surface);border:1px solid var(--line-soft);border-radius:10px;white-space:pre-wrap
 }
+.cmt{padding:10px 4px 2px}
+.cmt .lb{font-size:11.5px;font-weight:650;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px}
+.excomment{
+  display:block;width:100%;background:var(--bg);border:1px solid var(--line);border-radius:11px;
+  padding:10px 12px;font-size:14.5px;line-height:1.4;resize:none;overflow:hidden;min-height:44px
+}
+.excomment::placeholder{color:var(--text-3)}
+.excomment:focus{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
 
 .addex{width:100%;padding:14px;border-radius:var(--r);border:1px dashed var(--line);color:var(--text-2);font-weight:600;font-size:14.5px;margin-bottom:12px}
 .addex:active{border-color:var(--accent);color:var(--accent)}
@@ -581,9 +596,10 @@ const sets   = () => S.entries.filter(e => e.type === "set" && !e.deleted);
    mislabelled field. */
 const distKm = e => e.distanceKm ?? e.distanceMi ?? null;
 
-/** Free-text note attached to one exercise within one session. */
+/** Free-text comment attached to one exercise within one session. */
+const exNoteId = (date, sessionId, exerciseId) => `exnote-${date}-${sessionId}-${exerciseId}`;
 const exNote = (date, sessionId, exerciseId) => {
-  const e = S.entries.find(x => x.id === `exnote-${date}-${sessionId}-${exerciseId}` && !x.deleted);
+  const e = S.entries.find(x => x.id === exNoteId(date, sessionId, exerciseId) && !x.deleted);
   return e ? e.text : "";
 };
 
@@ -593,6 +609,14 @@ function lastPerf(exerciseId, beforeDate){
   if (!rows.length) return null;
   const d = rows.reduce((m, e) => e.date > m ? e.date : m, "");
   return {date:d, sets:rows.filter(e => e.date === d).sort((a,b) => a.setIndex - b.setIndex)};
+}
+
+/** Tomorrow's slot in the weekly rotation — shown on Today so the next day
+    isn't a surprise (and a rest day can be planned around). */
+function tomorrow(){
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  const sid = ROUTINE.week[d.getDay()];
+  return {date:d, sessionId:sid, session:ROUTINE.sessions[sid]};
 }
 
 function mobilityStreak(){
@@ -699,6 +723,7 @@ async function unlogSet(ei, si){
 }
 
 async function finishSession(){
+  flushComments();
   if (S.active.kind === "cardio"){
     const c = S.active.cardio;
     if (c.durationMin == null) return toast("Add a duration");
@@ -770,7 +795,7 @@ async function reqWake(){ try{ if ("wakeLock" in navigator && !wake) wake = awai
 function releaseWake(){ try{ wake && wake.release(); }catch(e){} wake = null; }
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible"){ if (S.active) reqWake(); render(); Sync.run("foreground"); }
-  else { wake = null; if (Sync.on) { clearTimeout(_syncT); Sync.run("backgrounded"); } }
+  else { wake = null; flushComments(); if (Sync.on) { clearTimeout(_syncT); Sync.run("backgrounded"); } }
 });
 
 /* ==========================================================================
@@ -803,6 +828,7 @@ function render(){
   if (S.sheet) html += S.sheet();
   if (S.toast) html += `<div class="toast">${esc(S.toast)}</div>`;
   app.innerHTML = html;
+  if (S.view === "session") sizeComments();
   if (S.rest && S.view === "session") paintRest();
 }
 
@@ -839,6 +865,7 @@ function viewToday(){
   const mob = S.entries.find(e => e.id === "mob-" + today() && !e.deleted);
   const streak = mobilityStreak();
   const recent = sessionList().slice(0, 4);
+  const tm = tomorrow();
 
   return `<div class="scroll">
     <div class="top">
@@ -876,6 +903,17 @@ function viewToday(){
           ${resume && S.active.sessionId === sid ? "Resume session" : done ? "Log again" : "Start session"}
         </button>`}
       ${done ? `<div class="meta" style="margin-top:10px;color:var(--accent)">✓ Already logged today</div>` : ""}
+    </div>
+
+    <div class="card flush">
+      <div class="up">
+        <i class="stripe" style="background:${tm.session.kind==="cardio"?"var(--cyan)":tm.session.kind==="rest"?"var(--line)":"var(--lime)"}"></i>
+        <div class="grow">
+          <div class="lbl">Up tomorrow · ${tm.date.toLocaleDateString(undefined,{weekday:"long"})}</div>
+          <div class="nm">${esc(tm.session.name)}</div>
+          <div class="tg">${esc(tm.session.tag || "")}</div>
+        </div>
+      </div>
     </div>
 
     <div class="card flush">
@@ -931,7 +969,7 @@ function viewSession(){
 
 function exCard(ex, i){
   const a = S.active, allDone = ex.sets.every(s => s.done), open = a.cur === i;
-  const note = exNote(a.date, a.sessionId, ex.id);
+  const note = exComment(a.date, a.sessionId, ex.id);
   const t = ex.target;
   const reps = t.lo === t.hi ? t.lo : `${t.lo}–${t.hi}`;
   const lastTxt = ex.last
@@ -949,13 +987,13 @@ function exCard(ex, i){
       ${allDone ? `<span class="pill ok">DONE</span>` : ex.main ? `<span class="pill main">MAIN</span>` : ""}
     </button>
     ${open ? `<div class="sets">${ex.sets.map((s,j) => setRow(ex,i,s,j)).join("")}
-       <div class="row" style="gap:10px;padding-top:8px">
-         <button class="setnote" onclick="addSet(${i})" style="flex:1;color:var(--text-3)">+ add a set</button>
-         <button class="setnote" onclick="sheetNote('ex',${i})" style="flex:none;color:${note?"var(--accent)":"var(--text-3)"}">
-           ${note ? "Edit note" : "+ note"}
-         </button>
+       <button class="setnote" onclick="addSet(${i})" style="color:var(--text-3)">+ add a set</button>
+       <div class="cmt">
+         <div class="lb">Comment</div>
+         <textarea class="excomment" rows="2" placeholder="How it felt, form cues, niggles…"
+           oninput="setExComment(${i},this.value);autosize(this)"
+           onblur="flushComments()">${esc(note)}</textarea>
        </div>
-       ${note ? `<div class="exnote" onclick="sheetNote('ex',${i})">${esc(note)}</div>` : ""}
      </div>` : ""}
     ${!open && note ? `<div class="exnote" style="margin:0 16px 14px">${esc(note)}</div>` : ""}
   </div>`;
@@ -1012,20 +1050,61 @@ function quickAdds(){
     </div></div>`;
 }
 
-/* Notes. Exercise-level notes are their own entry type keyed by
-   date+session+exercise, so they merge across devices like everything else.
-   Set-level notes live on the set entry itself. */
-function sheetNote(kind, i, j){
+/* ---------- comments ----------
+   Exercise comments are their own entry type keyed by date+session+exercise,
+   so they merge across devices like everything else. The field is typed into
+   inline while logging, so — as with the weight and rep inputs — keystrokes go
+   to a draft rather than through render(), which would steal focus. Drafts are
+   flushed to the log on a pause, on blur, and whenever the session is left. */
+const _drafts = new Map();
+let _draftT = null;
+
+const exComment = (date, sessionId, exerciseId) => {
+  const d = _drafts.get(exNoteId(date, sessionId, exerciseId));
+  return d ? d.text : exNote(date, sessionId, exerciseId);
+};
+
+function setExComment(i, text){
   const a = S.active, ex = a.exercises[i];
-  const cur = kind === "ex" ? exNote(a.date, a.sessionId, ex.id) : (ex.sets[j].notes || "");
-  const title = kind === "ex" ? ex.name : `${ex.name} · set ${j+1}`;
+  _drafts.set(exNoteId(a.date, a.sessionId, ex.id), {
+    id:exNoteId(a.date, a.sessionId, ex.id), text,
+    date:a.date, sessionId:a.sessionId, sessionName:a.sessionName,
+    exerciseId:ex.id, exerciseName:ex.name
+  });
+  clearTimeout(_draftT); _draftT = setTimeout(flushComments, 700);
+}
+
+/* saveEntry updates S.entries synchronously, so dropping the draft here can't
+   leave a render reading a stale comment. */
+function flushComments(){
+  clearTimeout(_draftT);
+  if (!_drafts.size) return;
+  const pending = [..._drafts.values()];
+  _drafts.clear();
+  for (const c of pending){
+    const text = (c.text || "").trim();
+    saveEntry({id:c.id, ts:Date.now(), type:"exnote", date:c.date,
+      sessionId:c.sessionId, sessionName:c.sessionName,
+      exerciseId:c.exerciseId, exerciseName:c.exerciseName, text, deleted:!text});
+  }
+  syncSoon("comment", 8000);
+}
+
+/* Grows with the text instead of scrolling inside a fixed box. */
+function autosize(el){ el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 320) + "px"; }
+function sizeComments(){ document.querySelectorAll("textarea.excomment").forEach(autosize); }
+
+/* Set-level notes live on the set entry itself, behind a sheet — they're the
+   exception rather than the habit. */
+function sheetNote(kind, i, j){
+  const ex = S.active.exercises[i];
+  const cur = ex.sets[j].notes || "";
   S.sheet = () => `<div class="mask" onclick="if(event.target===this){S.sheet=null;render()}">
     <div class="sheet">
-      <h4 class="trunc">${esc(title)}</h4>
-      <textarea class="note" id="note-text" rows="4" placeholder="${kind==="ex"
-        ? "How it felt, form cues, niggles…" : "e.g. failed at 6, belt on"}">${esc(cur)}</textarea>
-      <button class="btn" onclick="saveNote('${kind}',${i},${j ?? -1})">Save</button>
-      ${cur ? `<button class="btn ghost slim" onclick="saveNote('${kind}',${i},${j ?? -1},true)">Clear note</button>` : ""}
+      <h4 class="trunc">${esc(ex.name)} · set ${j+1}</h4>
+      <textarea class="note" id="note-text" rows="4" placeholder="e.g. failed at 6, belt on">${esc(cur)}</textarea>
+      <button class="btn" onclick="saveNote('${kind}',${i},${j})">Save</button>
+      ${cur ? `<button class="btn ghost slim" onclick="saveNote('${kind}',${i},${j},true)">Clear note</button>` : ""}
       <button class="btn ghost slim" onclick="S.sheet=null;render()">Cancel</button>
     </div></div>`;
   render();
@@ -1033,26 +1112,16 @@ function sheetNote(kind, i, j){
 }
 
 async function saveNote(kind, i, j, clear){
-  const a = S.active, ex = a.exercises[i];
+  const st = S.active.exercises[i].sets[j];
   const text = clear ? "" : (document.getElementById("note-text").value || "").trim();
   S.sheet = null;
-
-  if (kind === "ex"){
-    await saveEntry({
-      id:`exnote-${a.date}-${a.sessionId}-${ex.id}`, ts:Date.now(), type:"exnote",
-      date:a.date, sessionId:a.sessionId, sessionName:a.sessionName,
-      exerciseId:ex.id, exerciseName:ex.name, text, deleted:!text
-    });
-  } else {
-    const st = ex.sets[j];
-    st.notes = text;
-    // If the set is already logged, push the note onto its existing entry.
-    if (st.entryId){
-      const e = S.entries.find(x => x.id === st.entryId);
-      if (e) await saveEntry({...e, notes:text, ts:Date.now()});
-    }
-    persistActive();
+  st.notes = text;
+  // If the set is already logged, push the note onto its existing entry.
+  if (st.entryId){
+    const e = S.entries.find(x => x.id === st.entryId);
+    if (e) await saveEntry({...e, notes:text, ts:Date.now()});
   }
+  persistActive();
   syncSoon("note", 8000);
   render();
 }
@@ -1081,6 +1150,7 @@ function addSet(i){
   persistActive(); render();
 }
 function closeSession(){
+  flushComments();
   const any = S.active.exercises.some(e => e.sets.some(s => s.done)) || (S.active.cardio && S.active.cardio.durationMin != null);
   if (any) { go("today"); toast("Session kept — resume from Today"); }
   else { S.active = null; setMeta("active", null); releaseWake(); go("today"); }
@@ -1419,5 +1489,6 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
 Object.assign(window, {go, startSession, logSet, unlogSet, finishSession, closeSession, toggleMobility,
   setVal, bump, focusEx, addSet, openDetail, setBlock, sheetAddExercise, confirmAddExercise, stepIn, quickAdd,
   exportJSON, importJSON, adjustRest, skipRest, blockInfo, num, persistActive, S, DB,
-  Sync, connectSync, disconnectSync, mergeEntries, sheetNote, saveNote, exNote, distKm});
+  Sync, connectSync, disconnectSync, mergeEntries, sheetNote, saveNote, exNote, distKm,
+  setExComment, flushComments, autosize, exComment, tomorrow});
 </script>

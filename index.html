@@ -220,6 +220,68 @@ textarea.note{width:100%;background:var(--surface);border:1px solid var(--line);
 .dset .ix{width:18px;color:var(--text-3);font-size:12px;font-weight:700}
 .dset .w{font-weight:650}
 
+/* ---------- stats ---------- */
+.seg{display:flex;gap:5px;background:var(--surface);border:1px solid var(--line-soft);border-radius:12px;padding:4px;margin-top:16px;max-width:340px}
+.seg button{flex:1;padding:9px 6px;border-radius:9px;font-size:13px;font-weight:650;color:var(--text-3)}
+.seg button.on{background:var(--surface-3);color:var(--text)}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(146px,1fr));gap:10px;margin:14px 0 12px}
+.tile{
+  background:linear-gradient(180deg,var(--surface-2),var(--surface));
+  border:1px solid var(--line-soft);border-radius:var(--r);padding:14px 15px
+}
+.tile .k{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)}
+.tile .v{font-size:25px;font-weight:700;letter-spacing:-.025em;margin-top:6px}
+.tile .v u{text-decoration:none;font-size:13px;font-weight:650;color:var(--text-3);margin-left:2px}
+.tile .s{font-size:12.5px;color:var(--text-2);margin-top:3px}
+
+/* Heatmap fills column-by-column, so 7 consecutive cells = one Sun–Sat week. */
+.heatwrap{display:flex;gap:6px;align-items:stretch}
+.heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);grid-auto-columns:1fr;gap:3px;flex:1;min-width:0}
+.heat i{display:block;aspect-ratio:1;border-radius:2.5px;background:var(--surface-3);opacity:.6}
+.heat i.m{background:var(--amber);opacity:.5}
+.heat i.s{background:var(--lime);opacity:1}
+.heat i.c{background:var(--cyan);opacity:1}
+.heat i.sc{background:linear-gradient(135deg,var(--lime) 0 50%,var(--cyan) 50% 100%);opacity:1}
+.heat i.ahead{opacity:.16}
+.hlab{display:grid;grid-template-rows:repeat(7,1fr);gap:3px;width:13px;flex:none;font-size:8.5px;color:var(--text-3);font-weight:650}
+.hlab span{display:grid;place-items:center}
+.legend{display:flex;flex-wrap:wrap;gap:13px;margin-top:14px;font-size:12px;color:var(--text-3)}
+.legend b{display:flex;align-items:center;gap:5px;font-weight:400}
+.legend b i{width:9px;height:9px;border-radius:2px;display:block}
+
+.chartwrap{max-width:620px}
+.cols{display:flex;align-items:flex-end;gap:4px;height:116px;margin-top:8px}
+.cols .col{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+.cols .col i{display:block;width:100%;background:var(--accent);border-radius:3px 3px 0 0;min-height:2px}
+.cols .col.now i{opacity:.45}                        /* week still in progress — not a real decline */
+.xax{display:flex;gap:4px;margin-top:7px;font-size:9.5px;color:var(--text-3)}
+.xax span{flex:1;min-width:0;text-align:center;white-space:nowrap;overflow:hidden}
+
+.gbar{display:flex;align-items:center;gap:11px;padding:8px 0;width:100%;text-align:left}
+.gbar+.gbar{border-top:1px solid var(--line-soft)}
+.gbar .gn{width:100px;flex:none;font-size:13.5px;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gbar .gt{flex:1;min-width:0;height:9px;border-radius:5px;background:var(--surface-3);overflow:hidden}
+.gbar .gt i{display:block;height:100%;border-radius:5px}
+.gbar .gv{width:78px;flex:none;text-align:right;font-size:13px;font-weight:650}
+.gbar .gv u{text-decoration:none;color:var(--text-3);font-size:11.5px;font-weight:600}
+.gbar.dim3{opacity:.4}
+
+select.sel{
+  width:100%;background:var(--surface);border:1px solid var(--line);border-radius:11px;
+  padding:13px 34px 13px 13px;font-size:15px;font-weight:650;-webkit-appearance:none;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--text-3) 50%),linear-gradient(135deg,var(--text-3) 50%,transparent 50%);
+  background-position:calc(100% - 18px) 21px,calc(100% - 13px) 21px;background-size:5px 5px;background-repeat:no-repeat
+}
+.pb{display:flex;align-items:baseline;gap:10px;padding:10px 0;font-size:14px}
+.pb+.pb{border-top:1px solid var(--line-soft)}
+.pb .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prtag{
+  font-size:9.5px;font-weight:800;letter-spacing:.06em;color:#0A0C08;background:var(--accent);
+  border-radius:5px;padding:3px 5px;flex:none;align-self:center
+}
+.foot{font-size:12px;color:var(--text-3);line-height:1.45;margin-top:14px}
+
 /* ---------- tabs ---------- */
 .tabs{
   position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;
@@ -264,6 +326,7 @@ textarea.note{width:100%;background:var(--surface);border:1px solid var(--line);
 /* ==========================================================================
    Routine — derived from workout-routine.md. Block A = strength,
    Block B = hypertrophy; each exercise carries targets for both.
+   `group` buckets an exercise for the weekly set-count breakdown in Stats.
    ========================================================================== */
 const ROUTINE = {
   // JS getDay(): 0 = Sunday
@@ -273,27 +336,27 @@ const ROUTINE = {
       name:"Legs", kind:"strength", tag:"Strength · posterior-chain biased",
       warmup:"90/90 hip switches · couch stretch · banded glute bridges ×15 · bodyweight squats ×10",
       exercises:[
-        {id:"back-squat", name:"Back Squat", main:true, A:{sets:4,lo:4,hi:6}, B:{sets:4,lo:8,hi:12},
+        {id:"back-squat", name:"Back Squat", main:true, group:"quads", A:{sets:4,lo:4,hi:6}, B:{sets:4,lo:8,hi:12},
          note:"Braced neutral spine. If the back is symptomatic, drop load/range or swap to front or goblet squat."},
-        {id:"hip-thrust", name:"Barbell Hip Thrust", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12},
+        {id:"hip-thrust", name:"Barbell Hip Thrust", group:"posterior", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12},
          note:"Glute strength at low spinal load — directly counters cycling posture."},
-        {id:"bulgarian-split-squat", name:"DB Bulgarian Split Squat", perSide:true, A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12}},
-        {id:"romanian-deadlift", name:"Romanian Deadlift", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12},
+        {id:"bulgarian-split-squat", name:"DB Bulgarian Split Squat", perSide:true, group:"quads", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12}},
+        {id:"romanian-deadlift", name:"Romanian Deadlift", group:"posterior", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12},
          note:"Light–moderate, hinge from the hips. Swap to cable pull-through if the back is flaring."},
-        {id:"pallof-press", name:"Pallof Press", perSide:true, A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}},
-        {id:"dead-bug", name:"Dead Bug", bodyweight:true, perSide:true, A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}}
+        {id:"pallof-press", name:"Pallof Press", perSide:true, group:"core", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}},
+        {id:"dead-bug", name:"Dead Bug", bodyweight:true, perSide:true, group:"core", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}}
       ]
     },
     upper: {
       name:"Upper", kind:"strength", tag:"Push / pull",
       warmup:"Band shoulder dislocates · scap push-ups · light face pulls",
       exercises:[
-        {id:"bench-press", name:"Barbell Bench Press", main:true, A:{sets:4,lo:5,hi:5}, B:{sets:4,lo:8,hi:10}},
-        {id:"weighted-pullup", name:"Weighted Pull-up", main:true, A:{sets:4,lo:5,hi:8}, B:{sets:3,lo:8,hi:10},
+        {id:"bench-press", name:"Barbell Bench Press", main:true, group:"push", A:{sets:4,lo:5,hi:5}, B:{sets:4,lo:8,hi:10}},
+        {id:"weighted-pullup", name:"Weighted Pull-up", main:true, group:"pull", A:{sets:4,lo:5,hi:8}, B:{sets:3,lo:8,hi:10},
          note:"Log added weight — 0 is bodyweight."},
-        {id:"incline-db-press", name:"Incline DB Press", A:{sets:3,lo:8,hi:10}, B:{sets:3,lo:12,hi:12}},
-        {id:"db-row", name:"DB or Cable Row", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:12,hi:12}},
-        {id:"face-pull", name:"Face Pulls", A:{sets:3,lo:15,hi:15}, B:{sets:3,lo:15,hi:15},
+        {id:"incline-db-press", name:"Incline DB Press", group:"push", A:{sets:3,lo:8,hi:10}, B:{sets:3,lo:12,hi:12}},
+        {id:"db-row", name:"DB or Cable Row", group:"pull", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:12,hi:12}},
+        {id:"face-pull", name:"Face Pulls", group:"pull", A:{sets:3,lo:15,hi:15}, B:{sets:3,lo:15,hi:15},
          note:"Rear delts + posture — counters the cyclist's rounded upper back."}
       ]
     },
@@ -301,13 +364,13 @@ const ROUTINE = {
       name:"Arms/Calves/Neck", kind:"strength", tag:"Plus hip & core finisher",
       warmup:"~5 min general warm-up",
       exercises:[
-        {id:"standing-calf-raise", name:"Standing Calf Raise", A:{sets:4,lo:12,hi:12}, B:{sets:4,lo:12,hi:12}},
-        {id:"seated-calf-raise", name:"Seated/Single-leg Calf Raise", A:{sets:3,lo:15,hi:15}, B:{sets:3,lo:15,hi:15}},
-        {id:"db-curl", name:"DB Curl", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:12,hi:15}},
-        {id:"cable-pushdown", name:"Cable Pushdown", A:{sets:3,lo:12,hi:12}, B:{sets:3,lo:15,hi:15}},
-        {id:"hammer-curl", name:"Hammer Curl", A:{sets:2,lo:12,hi:12}, B:{sets:2,lo:12,hi:15}},
-        {id:"overhead-tricep-ext", name:"Overhead Triceps Ext", A:{sets:2,lo:12,hi:12}, B:{sets:2,lo:12,hi:15}},
-        {id:"neck", name:"Neck Flexion/Extension", optional:true, A:{sets:2,lo:15,hi:15}, B:{sets:2,lo:15,hi:15},
+        {id:"standing-calf-raise", name:"Standing Calf Raise", group:"calves", A:{sets:4,lo:12,hi:12}, B:{sets:4,lo:12,hi:12}},
+        {id:"seated-calf-raise", name:"Seated/Single-leg Calf Raise", group:"calves", A:{sets:3,lo:15,hi:15}, B:{sets:3,lo:15,hi:15}},
+        {id:"db-curl", name:"DB Curl", group:"arms", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:12,hi:15}},
+        {id:"cable-pushdown", name:"Cable Pushdown", group:"arms", A:{sets:3,lo:12,hi:12}, B:{sets:3,lo:15,hi:15}},
+        {id:"hammer-curl", name:"Hammer Curl", group:"arms", A:{sets:2,lo:12,hi:12}, B:{sets:2,lo:12,hi:15}},
+        {id:"overhead-tricep-ext", name:"Overhead Triceps Ext", group:"arms", A:{sets:2,lo:12,hi:12}, B:{sets:2,lo:12,hi:15}},
+        {id:"neck", name:"Neck Flexion/Extension", optional:true, group:"other", A:{sets:2,lo:15,hi:15}, B:{sets:2,lo:15,hi:15},
          note:"Optional — keep it light."}
       ],
       finisher:"8–10 min hip + core mobility flow"
@@ -393,7 +456,10 @@ const DB = (() => {
   };
 })();
 
-const S = {entries:[], meta:{}, view:"today", active:null, rest:null, sheet:null, detail:null, toast:null};
+const S = {
+  entries:[], meta:{}, view:"today", active:null, rest:null, sheet:null, detail:null, toast:null,
+  stats:{range:"6w", exercise:null, group:null}
+};
 
 const uid   = () => "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const iso   = d => { const x = d || new Date(); return new Date(x.getTime() - x.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
@@ -626,6 +692,115 @@ const knownExercises = () => {
 };
 
 /* ==========================================================================
+   Metrics
+   ========================================================================== */
+
+/* Epley. The point isn't the number's accuracy — it's that it puts a 4×5 in
+   Block A and a 4×12 in Block B on one axis, which raw weight can't do.
+   Bodyweight work (weight 0) has no e1RM; those lifts chart reps instead. */
+const e1rm = (w, r) => (w > 0 && r > 0) ? w * (1 + r/30) : 0;
+
+const GROUPS = {
+  quads:"Quads", posterior:"Posterior", push:"Push", pull:"Pull",
+  arms:"Arms", core:"Core", calves:"Calves", other:"Other"
+};
+const GROUP_COLOR = {
+  quads:"var(--lime)", posterior:"var(--cyan)", push:"var(--amber)", pull:"#A78BFA",
+  arms:"#FF7BC2", core:"#4ADE9B", calves:"#6EA8FF", other:"var(--text-3)"
+};
+
+/* Anything logged ad-hoc isn't in ROUTINE, so fall back to the name. First
+   match wins — order matters ("leg extension" is quads, not arms). */
+const GROUP_HINTS = [
+  [/calf|calves/,                                            "calves"],
+  [/nordic|leg curl|ham(string)? curl/,                      "posterior"],  // "curl" that isn't a biceps curl
+  [/rear delt|reverse fly|rear fly/,                         "pull"],       // "fly" that isn't a chest fly
+  [/pallof/,                                                 "core"],       // "press" that isn't a press
+  [/squat|lunge|step.?up|leg press|leg extension|split|sled/, "quads"],
+  [/deadlift|rdl|romanian|hip thrust|glute|hamstring|swing|good.?morning|hyperext|pull.?through|back ext/, "posterior"],
+  [/bench|chest|fly|dip|push.?up|press|ohp|lateral raise/,   "push"],
+  [/pull.?up|chin.?up|row|pulldown|face pull|lat |shrug|rear delt/, "pull"],
+  [/curl|tricep|pushdown|skull|kickback/,                    "arms"],
+  [/plank|pallof|dead.?bug|bird.?dog|crunch|hollow|ab |carry|core|oblique|sit.?up/, "core"]
+];
+const ROUTINE_GROUPS = (() => {
+  const m = new Map();
+  Object.values(ROUTINE.sessions).forEach(s => (s.exercises||[]).forEach(e => e.group && m.set(e.id, e.group)));
+  return m;
+})();
+function groupOf(exerciseId, exerciseName){
+  const known = ROUTINE_GROUPS.get(exerciseId);
+  if (known) return known;
+  const s = String(exerciseName || exerciseId || "").toLowerCase().replace(/-/g," ");
+  for (const [re, g] of GROUP_HINTS) if (re.test(s)) return g;
+  return "other";
+}
+
+/* Weeks run Sunday–Saturday, matching ROUTINE.week and the heatmap columns. */
+function weekStart(dateStr){
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() - d.getDay());
+  return iso(d);
+}
+const shiftDate = (dateStr, days) => {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return iso(d);
+};
+
+const RANGES = {"6w":{days:42, label:"6 weeks"}, "6m":{days:182, label:"6 months"}, all:{days:null, label:"all time"}};
+
+/** Inclusive start date of the current range — for `all`, the first thing logged. */
+function rangeStart(){
+  const r = RANGES[S.stats.range] || RANGES["6w"];
+  if (r.days) return shiftDate(today(), -(r.days - 1));
+  const dates = S.entries.filter(e => !e.deleted && e.date).map(e => e.date);
+  return dates.length ? dates.reduce((m, d) => d < m ? d : m) : today();
+}
+
+/** Sunday of each week in the window, oldest first. Capped so bars stay legible. */
+function weeksIn(from, cap = 26){
+  const out = [];
+  let w = weekStart(today());
+  while (w >= weekStart(from) && out.length < cap){ out.unshift(w); w = shiftDate(w, -7); }
+  return out;
+}
+
+/** Best single set by e1RM for an exercise, all time. `skipId` ignores one entry. */
+function bestSet(exerciseId, skipId){
+  let best = null;
+  for (const e of sets()){
+    if (e.exerciseId !== exerciseId || e.id === skipId) continue;
+    const v = e1rm(e.weight, e.reps);
+    if (v > 0 && (!best || v > best.v)) best = {v, e};
+  }
+  return best;
+}
+
+/** Entry ids that are the current all-time best for their exercise. */
+function prIds(exerciseIds){
+  const out = new Set();
+  for (const id of exerciseIds){ const b = bestSet(id); if (b) out.add(b.e.id); }
+  return out;
+}
+
+/** Per-session bests for one exercise, oldest first — the progression series. */
+function progression(exerciseId){
+  const rows = sets().filter(e => e.exerciseId === exerciseId);
+  const byDate = new Map();
+  for (const e of rows){
+    const cur = byDate.get(e.date) || {date:e.date, e1:0, weight:0, reps:0, volume:0, sets:0, top:null};
+    const v = e1rm(e.weight, e.reps);
+    if (v > cur.e1){ cur.e1 = v; cur.weight = e.weight; cur.reps = e.reps; cur.top = e; }
+    cur.volume += (e.reps || 0) * (e.weight || 0);
+    cur.reps_total = (cur.reps_total || 0) + (e.reps || 0);
+    cur.sets++;
+    byDate.set(e.date, cur);
+  }
+  return [...byDate.values()].sort((a,b) => a.date < b.date ? -1 : 1);
+}
+
+/* ==========================================================================
    Session flow
    ========================================================================== */
 function buildExercise(ex, blk, date){
@@ -678,6 +853,11 @@ async function logSet(ei, si){
     reps:st.reps, weight:st.weight, unit:"lb", rpe:st.rpe, notes:st.notes || "", deleted:false
   });
   st.done = true; st.entryId = id; st.suggested = false;
+
+  // A best is judged against every other set of this lift — re-logging the same
+  // set shouldn't have it beat itself.
+  const v = e1rm(st.weight, st.reps), prev = bestSet(ex.id, id);
+  if (v > 0 && (!prev || v > prev.v + 0.05)) toast(`New best — ${fmtW(st.weight)} × ${st.reps}`);
 
   // Advance to the next unfinished exercise once this one is complete.
   if (ex.sets.every(x => x.done)){
@@ -782,6 +962,7 @@ function toast(msg){ S.toast = msg; render(); clearTimeout(toast._t); toast._t =
 const ICON = {
   today:'<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"/></svg>',
   hist: '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 4v4h4"/><path d="M12 7.5V12l3 2"/></svg>',
+  stats:'<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V11M12 20V4.5M19 20v-6"/></svg>',
   set:  '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/></svg>',
   check:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4.5 4.5L19 7"/></svg>',
   x:    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
@@ -795,6 +976,7 @@ function render(){
   let html = "";
   if      (S.view === "session")  html = viewSession();
   else if (S.view === "history")  html = viewHistory();
+  else if (S.view === "stats")    html = viewStats();
   else if (S.view === "settings") html = viewSettings();
   else                            html = viewToday();
 
@@ -827,7 +1009,7 @@ function syncChip(){
 }
 
 const tabs = () => `<nav class="tabs">
-  ${[["today","Today",ICON.today],["history","History",ICON.hist],["settings","Settings",ICON.set]]
+  ${[["today","Today",ICON.today],["history","History",ICON.hist],["stats","Stats",ICON.stats],["settings","Settings",ICON.set]]
     .map(([v,l,i]) => `<button class="tab ${S.view===v?"on":""}" onclick="go('${v}')">${i}<span>${l}</span></button>`).join("")}
 </nav>`;
 
@@ -922,14 +1104,14 @@ function viewSession(){
       <div class="prog"><i style="width:${total?done/total*100:0}%"></i></div>
     </div>
     <div class="scroll" style="padding-top:14px;padding-bottom:${S.rest?"140px":"40px"}">
-      ${a.exercises.map((e,i) => exCard(e,i)).join("")}
+      ${(prs => a.exercises.map((e,i) => exCard(e,i,prs)).join(""))(prIds(a.exercises.map(e => e.id)))}
       ${quickAdds()}
       <button class="addex" onclick="sheetAddExercise()">+  Add exercise</button>
       <button class="btn ghost" onclick="finishSession()">Finish session</button>
     </div>`;
 }
 
-function exCard(ex, i){
+function exCard(ex, i, prs){
   const a = S.active, allDone = ex.sets.every(s => s.done), open = a.cur === i;
   const note = exNote(a.date, a.sessionId, ex.id);
   const t = ex.target;
@@ -948,7 +1130,7 @@ function exCard(ex, i){
       </div>
       ${allDone ? `<span class="pill ok">DONE</span>` : ex.main ? `<span class="pill main">MAIN</span>` : ""}
     </button>
-    ${open ? `<div class="sets">${ex.sets.map((s,j) => setRow(ex,i,s,j)).join("")}
+    ${open ? `<div class="sets">${ex.sets.map((s,j) => setRow(ex,i,s,j,prs)).join("")}
        <div class="row" style="gap:10px;padding-top:8px">
          <button class="setnote" onclick="addSet(${i})" style="flex:1;color:var(--text-3)">+ add a set</button>
          <button class="setnote" onclick="sheetNote('ex',${i})" style="flex:none;color:${note?"var(--accent)":"var(--text-3)"}">
@@ -961,10 +1143,11 @@ function exCard(ex, i){
   </div>`;
 }
 
-function setRow(ex, i, st, j){
+function setRow(ex, i, st, j, prs){
   const next = !st.done && ex.sets.findIndex(x => !x.done) === j;
   const gh = ex.last && ex.last.sets[j];
   const sug = st.suggested && !st.done ? "sug" : "";
+  const pr  = st.entryId && prs && prs.has(st.entryId);
   return `<div class="set ${st.done?"ok":""} ${next?"on":""}">
     <div class="ix num">${j+1}</div>
     ${ex.bodyweight ? "" : `
@@ -978,6 +1161,7 @@ function setRow(ex, i, st, j){
              placeholder="${gh ? gh.reps : "—"}" onfocus="this.select()"
              oninput="setVal(${i},${j},'reps',this.value)"><span class="u">${ex.perSide?"ea":"reps"}</span>
     </div>
+    ${pr ? `<span class="prtag" title="Best estimated 1RM for this lift">PR</span>` : ""}
     <button class="chk" onclick="${st.done?`unlogSet(${i},${j})`:`logSet(${i},${j})`}">${ICON.check}</button>
   </div>
   ${next ? `<div class="steps">
@@ -1173,6 +1357,7 @@ function viewDetail(){
       if (!byEx.has(e.exerciseId)) byEx.set(e.exerciseId, []);
       byEx.get(e.exerciseId).push(e);
     });
+    const prs = prIds([...byEx.keys()]);
     body = [...byEx.entries()].map(([exId, rows]) => {
       const n = exNote(s.date, s.sessionId, exId);
       return `<div class="det">
@@ -1180,6 +1365,7 @@ function viewDetail(){
         ${rows.map(e => `<div class="dset">
           <span class="ix num">${e.setIndex}</span>
           <span class="w num">${fmtW(e.weight)} lb</span><span class="dim">×</span><span class="num">${e.reps}</span>
+          ${prs.has(e.id) ? `<span class="prtag">PR</span>` : ""}
           ${e.rpe != null ? `<span class="dim2" style="font-size:12.5px">RPE ${e.rpe}</span>` : ""}
           ${e.notes ? `<span class="dim2" style="font-size:12.5px">· ${esc(e.notes)}</span>` : ""}
         </div>`).join("")}
@@ -1194,6 +1380,314 @@ function viewDetail(){
       <button class="iconbtn" onclick="S.detail=null;render()">${ICON.x}</button>
     </div>
     <div style="margin-top:16px">${body}</div>
+  </div>`;
+}
+
+/* ==========================================================================
+   Stats
+   ========================================================================== */
+function setRange(r){ S.stats.range = r; render(); }
+function setStatsExercise(id){ S.stats.exercise = id; render(); }
+function toggleGroup(g){ S.stats.group = S.stats.group === g ? null : g; render(); }
+
+function viewStats(){
+  const from = rangeStart();
+  const weeks = weeksIn(from);                  // capped, for the charts
+  const inWin = d => d >= from;
+
+  const sess    = sessionList().filter(s => inWin(s.date));
+  const rows    = sets().filter(e => inWin(e.date));
+  const strength= sess.filter(s => s.type !== "cardio").length;
+  const rides   = sess.filter(s => s.type === "cardio");
+  const cardio  = S.entries.filter(e => e.type === "cardio" && !e.deleted && inWin(e.date));
+  const rideMin = cardio.reduce((n,e) => n + (e.durationMin || 0), 0);
+  const volume  = rows.reduce((n,e) => n + (e.reps||0)*(e.weight||0), 0);
+
+  // Per-week rates divide by the weeks you were actually training. Picking a
+  // 6-month window after 3 months of logging shouldn't halve every average.
+  const first = S.entries.reduce((m,e) => (!e.deleted && e.date && (!m || e.date < m)) ? e.date : m, null);
+  const nw    = Math.max(1, weeksIn(first && first > from ? first : from, 999).length);
+
+  return `<div class="scroll">
+    <div class="top"><div><h1>Stats</h1><p class="sub">Last ${RANGES[S.stats.range].label}</p></div></div>
+
+    <div class="seg">
+      ${Object.entries(RANGES).map(([k,v]) =>
+        `<button class="${S.stats.range===k?"on":""}" onclick="setRange('${k}')">${k === "all" ? "All" : k.toUpperCase()}</button>`).join("")}
+    </div>
+
+    ${sess.length || rows.length ? `
+      <div class="tiles">
+        <div class="tile">
+          <div class="k">Sessions</div>
+          <div class="v num">${sess.length}</div>
+          <div class="s">${(sess.length/nw).toFixed(1)}/week · ${strength} lift, ${rides.length} ride</div>
+        </div>
+        <div class="tile">
+          <div class="k">Sets</div>
+          <div class="v num">${rows.length}</div>
+          <div class="s">${Math.round(rows.length/nw)}/week</div>
+        </div>
+        <div class="tile">
+          <div class="k">Volume</div>
+          <div class="v num">${(volume/1000).toFixed(1)}<u>k lb</u></div>
+          <div class="s">${Math.round(volume/nw).toLocaleString()} lb/week</div>
+        </div>
+        <div class="tile">
+          <div class="k">Ride time</div>
+          <div class="v num">${(rideMin/60).toFixed(1)}<u>h</u></div>
+          <div class="s">${(rideMin/60/nw).toFixed(1)} h/week</div>
+        </div>
+      </div>
+
+      ${cardHeatmap(weeks[0] || from)}
+      ${cardProgression()}
+      ${cardVolume(weeks, from)}
+      ${cardBests()}
+    ` : `<div class="empty">Nothing logged in this window.<br>Finish a session and the numbers show up here.</div>`}
+  </div>`;
+}
+
+/* ---------- consistency ---------- */
+function cardHeatmap(win){
+  const day = new Map();
+  for (const s of sessionList()){
+    const d = day.get(s.date) || {};
+    d[s.type === "cardio" ? "c" : "s"] = s.sessionId;
+    day.set(s.date, d);
+  }
+  for (const e of S.entries){
+    if (e.type !== "mobility" || e.deleted) continue;
+    const d = day.get(e.date) || {}; d.m = true; day.set(e.date, d);
+  }
+
+  const start = weekStart(win), end = shiftDate(weekStart(today()), 6), now = today();
+  const cells = [];
+  let streak = 0, trained = 0;
+  for (let d = start; d <= end; d = shiftDate(d, 1)){
+    const v = day.get(d) || {};
+    const cls = v.s && v.c ? "sc" : v.s ? "s" : v.c ? "c" : v.m ? "m" : "";
+    if (d <= now && (v.s || v.c)) trained++;
+    const target = v.s || v.c;
+    const what = [v.s && "lift", v.c && "ride", v.m && "mobility"].filter(Boolean).join(" + ") || "nothing";
+    cells.push(`<i class="${cls}${d > now ? " ahead" : ""}" title="${fmtDay(d)} — ${what}"
+      ${target ? `onclick="openDetail('${d}','${target}')"` : ""}></i>`);
+  }
+  // Consecutive days ending today (or yesterday, if today is still open) with a session.
+  let c = now;
+  if (!day.get(c) || !(day.get(c).s || day.get(c).c)) c = shiftDate(c, -1);
+  while (day.get(c) && (day.get(c).s || day.get(c).c)){ streak++; c = shiftDate(c, -1); }
+
+  const wks = Math.round((new Date(end+"T00:00:00") - new Date(start+"T00:00:00")) / 6048e5);
+  return `<div class="card">
+    <div class="between" style="margin-bottom:14px">
+      <div>
+        <div style="font-weight:650">Consistency</div>
+        <div class="sub">${trained} training days over ${wks} weeks · ${streak ? streak + " day streak" : "no active streak"}</div>
+      </div>
+    </div>
+    <div class="heatwrap">
+      <div class="hlab"><span></span><span>M</span><span></span><span>W</span><span></span><span>F</span><span></span></div>
+      <!-- Cells stay square and shrink to fit; the cap stops six columns from
+           ballooning into blocks on a phone. -->
+      <div class="heat" style="max-width:${cells.length/7*20 + (cells.length/7 - 1)*3}px">${cells.join("")}</div>
+    </div>
+    <div class="legend">
+      <b><i style="background:var(--lime)"></i>Lift</b>
+      <b><i style="background:var(--cyan)"></i>Ride</b>
+      <b><i style="background:var(--amber);opacity:.5"></i>Mobility only</b>
+      <b><i style="background:var(--surface-3)"></i>Nothing</b>
+    </div>
+  </div>`;
+}
+
+/* ---------- progression ---------- */
+function cardProgression(){
+  const logged = new Map();
+  for (const e of sets()) logged.set(e.exerciseId, {name:e.exerciseName, date:e.date});
+  if (!logged.size) return "";
+
+  const opts = [...logged.entries()].sort((a,b) => a[1].name.localeCompare(b[1].name));
+  let id = S.stats.exercise;
+  if (!id || !logged.has(id)){
+    // Default to whichever main lift was touched most recently.
+    const mains = new Set();
+    Object.values(ROUTINE.sessions).forEach(s => (s.exercises||[]).forEach(x => x.main && mains.add(x.id)));
+    const pick = [...logged.entries()].filter(([k]) => mains.has(k)).sort((a,b) => b[1].date < a[1].date ? -1 : 1)[0]
+              || [...logged.entries()].sort((a,b) => b[1].date < a[1].date ? -1 : 1)[0];
+    id = pick[0];
+  }
+
+  const series = progression(id);
+  const weighted = series.some(p => p.e1 > 0);
+  const pts = series.map(p => ({
+    x: new Date(p.date+"T00:00:00").getTime(),
+    y: weighted ? p.e1 : (p.reps_total || 0),
+    p
+  }));
+
+  const last = series[series.length - 1], best = bestSet(id);
+  let trend = "";
+  if (pts.length >= 2){
+    const cut = Date.now() - 28*864e5;
+    const recent = pts.filter(q => q.x >= cut);
+    const base = recent.length >= 2 ? recent : pts.slice(-4);
+    const days = (base[base.length-1].x - base[0].x) / 864e5;
+    const delta = base[base.length-1].y - base[0].y;
+    if (days > 0){
+      const perWeek = delta / days * 7;
+      const unit = weighted ? " lb/wk" : " reps/wk";
+      trend = `<span style="color:${perWeek > 0.05 ? "var(--accent)" : perWeek < -0.05 ? "var(--amber)" : "var(--text-2)"}">
+        ${perWeek > 0 ? "+" : ""}${perWeek.toFixed(1)}${unit}</span> <span class="dim2">over the last ${Math.round(days)} days</span>`;
+    }
+  }
+
+  return `<div class="card">
+    <div style="font-weight:650;margin-bottom:12px">Progression</div>
+    <select class="sel" onchange="setStatsExercise(this.value)">
+      ${opts.map(([k,v]) => `<option value="${esc(k)}" ${k===id?"selected":""}>${esc(v.name)}</option>`).join("")}
+    </select>
+    <div class="chartwrap" style="margin-top:14px">
+      ${lineChart(pts, weighted)}
+    </div>
+    <div class="between" style="margin-top:14px;border-top:1px solid var(--line-soft);padding-top:13px;flex-wrap:wrap;gap:14px">
+      <div>
+        <div class="k" style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)">Best</div>
+        <div class="num" style="font-weight:650;margin-top:4px">${best
+          ? `${fmtW(best.e.weight)} × ${best.e.reps} <span class="dim2" style="font-size:12.5px">· e1RM ${Math.round(best.v)} lb</span>`
+          : "—"}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)">Last</div>
+        <div class="num" style="font-weight:650;margin-top:4px">${last
+          ? (weighted ? `${fmtW(last.weight)} × ${last.reps}` : `${last.reps_total} reps`) + ` <span class="dim2" style="font-size:12.5px">· ${fmtDay(last.date)}</span>`
+          : "—"}</div>
+      </div>
+    </div>
+    ${trend ? `<div class="foot" style="font-size:13px">${trend}</div>` : ""}
+    ${weighted ? `<div class="foot">Charting estimated 1RM (Epley) so heavy-low and light-high sessions compare on one axis.</div>`
+               : `<div class="foot">Bodyweight lift — charting total reps per session.</div>`}
+  </div>`;
+}
+
+/* Uniformly-scaled SVG: viewBox does the layout, CSS does the width. */
+function lineChart(pts, weighted){
+  if (pts.length < 2)
+    return `<div class="empty" style="padding:30px 12px">Log this one twice and the trend shows up here.</div>`;
+
+  const W = 320, H = 118, PL = 4, PR = 4, PT = 12, PB = 8;
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const span = (y1 - y0) || Math.max(1, y1 * 0.1);
+  const lo = y0 - span * 0.35, hi = y1 + span * 0.35;
+  const X = v => PL + (x1 === x0 ? 0.5 : (v - x0)/(x1 - x0)) * (W - PL - PR);
+  const Y = v => PT + (1 - (v - lo)/((hi - lo) || 1)) * (H - PT - PB);
+
+  const d = pts.map((p,i) => `${i ? "L" : "M"}${X(p.x).toFixed(1)} ${Y(p.y).toFixed(1)}`).join(" ");
+  const area = `${d} L${X(x1).toFixed(1)} ${H - PB} L${X(x0).toFixed(1)} ${H - PB} Z`;
+  const dots = pts.map((p,i) => {
+    const lastOne = i === pts.length - 1;
+    return `<circle cx="${X(p.x).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="${lastOne ? 3.4 : 2}"
+      fill="${lastOne ? "var(--accent)" : "var(--bg)"}" stroke="var(--accent)" stroke-width="1.4"
+      vector-effect="non-scaling-stroke"><title>${fmtDay(p.p.date)} — ${weighted
+        ? `${fmtW(p.p.weight)}×${p.p.reps} (e1RM ${Math.round(p.p.e1)})` : `${p.p.reps_total} reps`}</title></circle>`;
+  }).join("");
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;overflow:visible">
+      <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--accent)" stop-opacity=".22"/>
+        <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+      </linearGradient></defs>
+      <path d="${area}" fill="url(#lg)"/>
+      <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"
+            stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      ${dots}
+    </svg>
+    <div class="between" style="margin-top:7px;font-size:11px;color:var(--text-3)">
+      <span>${fmtDay(pts[0].p.date)}</span>
+      <span class="num">${Math.round(y0)} – ${Math.round(y1)}${weighted ? " lb" : " reps"}</span>
+      <span>${fmtDay(pts[pts.length-1].p.date)}</span>
+    </div>`;
+}
+
+/* ---------- volume ---------- */
+function cardVolume(weeks, from){
+  const win = weeks[0] || today();
+  const rows = sets().filter(e => e.date >= win);
+  if (!rows.length) return "";
+
+  const byGroup = new Map();
+  for (const e of rows){
+    const g = groupOf(e.exerciseId, e.exerciseName);
+    byGroup.set(g, (byGroup.get(g) || 0) + 1);
+  }
+  const sel = S.stats.group;
+  const capped = win > from;                       // range runs deeper than the chart shows
+  const first = S.entries.reduce((m,e) => (!e.deleted && e.date && (!m || e.date < m)) ? e.date : m, null);
+  const nw = Math.max(1, weeksIn(first && first > win ? first : win, 999).length);
+
+  const perWeek = weeks.map(w => {
+    const end = shiftDate(w, 6);
+    const n = rows.filter(e => e.date >= w && e.date <= end &&
+      (!sel || groupOf(e.exerciseId, e.exerciseName) === sel)).length;
+    return {week:w, n};
+  });
+  const peak = Math.max(1, ...perWeek.map(x => x.n));
+  const cur  = weekStart(today());
+
+  const ordered = Object.keys(GROUPS).filter(g => byGroup.get(g)).sort((a,b) => byGroup.get(b) - byGroup.get(a));
+  const top = Math.max(...ordered.map(g => byGroup.get(g)));
+
+  return `<div class="card">
+    <div class="between" style="margin-bottom:4px">
+      <div>
+        <div style="font-weight:650">Weekly sets${sel ? ` · ${GROUPS[sel]}` : ""}</div>
+        ${capped ? `<div class="sub">Last ${weeks.length} weeks</div>` : ""}
+      </div>
+      <div class="dim2" style="font-size:12.5px">peak ${peak}</div>
+    </div>
+    <div class="cols">
+      ${perWeek.map(x => `<div class="col ${x.week === cur ? "now" : ""}"
+        title="Week of ${fmtDay(x.week)} — ${x.n} sets${x.week === cur ? " so far" : ""}">
+        <i style="height:${x.n/peak*100}%;background:${sel ? GROUP_COLOR[sel] : "var(--accent)"}"></i></div>`).join("")}
+    </div>
+    <div class="xax">
+      ${perWeek.map((x,i) => `<span>${i === 0 || i === perWeek.length-1 || perWeek.length <= 8 || i % Math.ceil(perWeek.length/6) === 0
+        ? new Date(x.week+"T00:00:00").toLocaleDateString(undefined,{month:"numeric",day:"numeric"}) : ""}</span>`).join("")}
+    </div>
+
+    <div style="margin-top:20px;border-top:1px solid var(--line-soft);padding-top:6px">
+      ${ordered.map(g => {
+        const n = byGroup.get(g);
+        return `<button class="gbar ${sel && sel !== g ? "dim3" : ""}" onclick="toggleGroup('${g}')">
+          <span class="gn">${GROUPS[g]}</span>
+          <span class="gt"><i style="width:${n/top*100}%;background:${GROUP_COLOR[g]}"></i></span>
+          <span class="gv num">${(n/nw).toFixed(1)}<u> /wk</u></span>
+        </button>`;
+      }).join("")}
+    </div>
+    <div class="foot">
+      ${sel ? "Tap the group again to see every set." : "Tap a group to filter the weekly chart."}
+      The last bar is the week in progress. One logged set counts once, whether or not it was per side.
+    </div>
+  </div>`;
+}
+
+/* ---------- personal bests ---------- */
+function cardBests(){
+  const ids = new Set(sets().map(e => e.exerciseId));
+  const best = [...ids].map(id => ({id, b:bestSet(id)})).filter(x => x.b)
+    .sort((a,b) => b.b.v - a.b.v).slice(0, 8);
+  if (!best.length) return "";
+  return `<div class="card">
+    <div style="font-weight:650;margin-bottom:6px">Personal bests</div>
+    <div class="sub" style="margin-bottom:8px">Heaviest estimated 1RM per lift, all time.</div>
+    ${best.map(({id, b}) => `<button class="pb" style="width:100%;text-align:left" onclick="setStatsExercise('${esc(id)}');window.scrollTo(0,0)">
+      <span class="n">${esc(b.e.exerciseName)}</span>
+      <span class="num" style="font-weight:650">${fmtW(b.e.weight)} × ${b.e.reps}</span>
+      <span class="dim2 num" style="font-size:12.5px;width:64px;text-align:right">${Math.round(b.v)} lb</span>
+    </button>`).join("")}
   </div>`;
 }
 
@@ -1419,5 +1913,6 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
 Object.assign(window, {go, startSession, logSet, unlogSet, finishSession, closeSession, toggleMobility,
   setVal, bump, focusEx, addSet, openDetail, setBlock, sheetAddExercise, confirmAddExercise, stepIn, quickAdd,
   exportJSON, importJSON, adjustRest, skipRest, blockInfo, num, persistActive, S, DB,
-  Sync, connectSync, disconnectSync, mergeEntries, sheetNote, saveNote, exNote, distKm});
+  Sync, connectSync, disconnectSync, mergeEntries, sheetNote, saveNote, exNote, distKm,
+  setRange, setStatsExercise, toggleGroup, e1rm, groupOf, bestSet, prIds, progression, weekStart});
 </script>

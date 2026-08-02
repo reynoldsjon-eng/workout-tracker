@@ -115,6 +115,13 @@ h2{font-size:13px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
 .shead .s{font-size:12.5px;color:var(--text-3);margin-top:2px}
 .iconbtn{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line);flex:none}
 .prog{height:3px;border-radius:2px;background:var(--surface-3);margin-top:12px;overflow:hidden}
+/* Backfilling an earlier day looks the same as logging live — this line is the
+   only thing saying otherwise, so it has to be loud. */
+.editing{
+  margin-top:10px;font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--amber);display:flex;align-items:center;gap:7px
+}
+.editing i{width:6px;height:6px;border-radius:50%;background:var(--amber);flex:none}
 .prog i{display:block;height:100%;background:var(--accent);transition:width .35s cubic-bezier(.4,0,.2,1)}
 
 .ex{border:1px solid var(--line-soft);border-radius:var(--r);margin-bottom:12px;background:var(--surface);overflow:hidden}
@@ -293,10 +300,20 @@ select.sel{
 
 /* ---------- sheet / toast ---------- */
 .mask{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center}
-.sheet{width:100%;max-width:520px;background:var(--surface-2);border:1px solid var(--line);border-radius:20px 20px 0 0;padding:20px 18px calc(20px + var(--sab));animation:up .26s cubic-bezier(.2,.9,.3,1)}
+.sheet{
+  width:100%;max-width:520px;background:var(--surface-2);border:1px solid var(--line);
+  border-radius:20px 20px 0 0;padding:20px 18px calc(20px + var(--sab));
+  animation:up .26s cubic-bezier(.2,.9,.3,1);
+  max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch   /* a day with a lot on it still fits */
+}
 @keyframes up{from{transform:translateY(24px);opacity:.4}}
 .sheet h4{margin:0 0 14px;font-size:18px;font-weight:700;letter-spacing:-.02em}
-.sheet input[type=text],.sheet input[type=number]{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px;font-size:16px}
+.sheet input[type=text],.sheet input[type=number],.sheet input[type=date]{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px;font-size:16px}
+.sheet input[type=date]{-webkit-appearance:none;appearance:none;min-height:48px}
+/* The day list scrolls inside the sheet — the sheet itself never grows past the screen. */
+.daylist{max-height:40vh;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-top:12px}
+.daylist .hitem{padding:12px 13px}
+.sheet .picks{grid-template-columns:repeat(auto-fill,minmax(132px,1fr))}
 .opts{display:flex;gap:8px;margin-top:12px}
 .opt{flex:1;padding:12px;border-radius:11px;background:var(--surface);border:1px solid var(--line);font-weight:650;font-size:14.5px;text-align:center}
 .opt.on{background:color-mix(in srgb,var(--accent) 16%,transparent);border-color:var(--accent);color:var(--accent)}
@@ -634,9 +651,9 @@ function syncSoon(reason, delay = 30000){
 window.addEventListener("online", () => Sync.run("back online"));
 
 /* ---------- derived ---------- */
-function blockInfo(){
+function blockInfo(on){
   const b = S.meta.block || {block:"A", start:today()};
-  const wk = Math.floor((new Date(today()+"T00:00:00") - new Date(b.start+"T00:00:00")) / 6048e5) + 1;
+  const wk = Math.floor((new Date((on || today())+"T00:00:00") - new Date(b.start+"T00:00:00")) / 6048e5) + 1;
   return {block:b.block, start:b.start, week:Math.max(1, wk)};
 }
 const target = (ex, blk) => ex[blk] || ex.A;
@@ -803,11 +820,20 @@ function progression(exerciseId){
 /* ==========================================================================
    Session flow
    ========================================================================== */
-function buildExercise(ex, blk, date){
+/** `logged` are that exercise's already-saved set entries, if any — they come
+    back as ticked rows wired to their entry id, so re-logging edits in place. */
+function buildExercise(ex, blk, date, logged){
   const t = target(ex, blk), last = lastPerf(ex.id, date);
+  const rows = (logged || []).slice().sort((a,b) => a.setIndex - b.setIndex);
+  const n = Math.max(t.sets, rows.length ? rows[rows.length-1].setIndex : 0);
   return {
     ...ex, target:t, last,
-    sets: Array.from({length:t.sets}, (_, i) => {
+    sets: Array.from({length:n}, (_, i) => {
+      const e = rows.find(r => r.setIndex === i + 1);
+      if (e) return {
+        reps:e.reps, weight:e.weight, rpe:e.rpe ?? null, notes:e.notes || "",
+        done:true, suggested:false, entryId:e.id
+      };
       const ls = last && last.sets[i];
       return {
         reps:   ls ? ls.reps   : t.lo,
@@ -818,18 +844,61 @@ function buildExercise(ex, blk, date){
   };
 }
 
-function startSession(id){
-  // Resume rather than rebuild — a rebuild would throw away sets already logged.
-  if (S.active && S.active.sessionId === id && S.active.date === today()){ reqWake(); return go("session"); }
-  const s = ROUTINE.sessions[id], blk = blockInfo().block, date = today();
+/** Opens a session for any date, live or backfilled, empty or already logged.
+    Everything saved for that day is rehydrated, so editing and logging fresh
+    are the same screen — there is no separate edit mode to keep in step. */
+function startSession(id, date){
+  const d = date || today();
+  // Resume rather than rebuild — a rebuild would throw away unlogged input.
+  if (S.active && S.active.sessionId === id && S.active.date === d){
+    if (d === today()) reqWake();
+    return go("session");
+  }
+  const def = ROUTINE.sessions[id] || {};
+  const rows = S.entries.filter(e => !e.deleted && e.date === d && e.sessionId === id);
+  const cardioEntry = rows.find(e => e.type === "cardio");
+  const kind = def.kind || (cardioEntry ? "cardio" : "strength");
+
+  const byEx = new Map();
+  for (const e of rows.filter(x => x.type === "set")){
+    if (!byEx.has(e.exerciseId)) byEx.set(e.exerciseId, []);
+    byEx.get(e.exerciseId).push(e);
+  }
+  // What the block was when it was logged beats what the block is now.
+  const blk = (rows.find(e => e.block) || {}).block || blockInfo(d).block;
+
+  const exercises = (def.exercises || []).map(ex => buildExercise(ex, blk, d, byEx.get(ex.id)));
+  const inRoutine = new Set((def.exercises || []).map(ex => ex.id));
+  for (const [exId, logged] of byEx){                    // substitutions and one-offs
+    if (inRoutine.has(exId)) continue;
+    const reps = logged[0].reps || 10;
+    exercises.push(buildExercise(
+      {id:exId, name:logged[0].exerciseName || exId, A:{sets:logged.length,lo:reps,hi:reps}, B:{sets:logged.length,lo:reps,hi:reps}},
+      blk, d, logged));
+  }
+
+  const open = exercises.findIndex(e => !e.sets.every(s => s.done));
   S.active = {
-    sessionId:id, sessionName:s.name, kind:s.kind, date, block:blk, startedAt:Date.now(),
-    exercises: (s.exercises || []).map(ex => buildExercise(ex, blk, date)),
-    cardio: s.kind === "cardio" ? {durationMin:null, distanceKm:null, avgPower:null, avgHr:null, rpe:null, notes:""} : null,
-    cur:0
+    sessionId:id, sessionName:def.name || (rows[0] && rows[0].sessionName) || id, kind,
+    date:d, block:blk, startedAt:Date.now(),
+    exercises: kind === "cardio" ? [] : exercises,
+    cardio: kind === "cardio" ? {
+      durationMin: cardioEntry ? cardioEntry.durationMin ?? null : null,
+      distanceKm:  cardioEntry ? distKm(cardioEntry) : null,
+      avgPower:    cardioEntry ? cardioEntry.avgPower ?? null : null,
+      avgHr:       cardioEntry ? cardioEntry.avgHr ?? null : null,
+      rpe:         cardioEntry ? cardioEntry.rpe ?? null : null,
+      notes:       cardioEntry ? cardioEntry.notes || "" : ""
+    } : null,
+    cardioId: cardioEntry ? cardioEntry.id : null,
+    cur: open >= 0 ? open : (exercises.length ? -1 : 0)   // all done: start collapsed
   };
-  reqWake(); persistActive(); go("session");
+  if (d === today()) reqWake();
+  persistActive(); go("session");
 }
+
+/** From history or the day sheet — same screen, just already populated. */
+function editSession(date, sid){ S.sheet = null; startSession(sid, date); }
 
 /* Debounced — oninput fires per keystroke and IDB writes are not free. */
 let _pt = null;
@@ -864,8 +933,40 @@ async function logSet(ei, si){
     const nxt = S.active.exercises.findIndex((e, i) => i > ei && !e.sets.every(x => x.done));
     if (nxt >= 0) S.active.cur = nxt;
   }
-  startRest(restFor(ex));
+  // No rest timer when you're filling in a day that's already over.
+  if (S.active.date === today()) startRest(restFor(ex));
   setMeta("active", S.active); syncSoon("mid-session"); render();
+}
+
+/** Retyping a number on a set that's already logged rewrites its entry in place
+    — same id, so it supersedes on every device rather than forking. Fires on
+    blur, and deliberately doesn't re-render: that would yank focus mid-edit,
+    so the confirmation is a border flash on the field itself. */
+async function commitSet(st){
+  if (!st || !st.done || !st.entryId) return false;
+  const e = S.entries.find(x => x.id === st.entryId);
+  if (!e) return false;
+  if (e.reps === st.reps && e.weight === st.weight && (e.rpe ?? null) === (st.rpe ?? null)) return false;
+  await saveEntry({...e, reps:st.reps, weight:st.weight, rpe:st.rpe ?? null, ts:Date.now()});
+  syncSoon("edit set", 8000);
+  return true;
+}
+
+async function commitEdit(ei, si, el){
+  const a = S.active;
+  if (!a || !a.exercises[ei]) return;
+  if (!await commitSet(a.exercises[ei].sets[si])) return;
+  const f = el && el.closest && el.closest(".fld, .steps");
+  if (f){ f.style.borderColor = "var(--accent)"; setTimeout(() => { f.style.borderColor = ""; }, 900); }
+}
+
+/** Sweep on the way out — a re-render can replace an input before its blur
+    fires, and the typed value is only in state at that point. Works off a
+    snapshot, so the caller is free to drop S.active without waiting. */
+async function commitAll(){
+  const a = S.active;
+  if (!a) return;
+  for (const ex of a.exercises) for (const st of ex.sets) await commitSet(st);
 }
 
 async function unlogSet(ei, si){
@@ -879,19 +980,25 @@ async function unlogSet(ei, si){
 }
 
 async function finishSession(){
-  if (S.active.kind === "cardio"){
-    const c = S.active.cardio;
+  const a = S.active, past = a.date !== today();
+  await commitAll();
+  if (a.kind === "cardio"){
+    const c = a.cardio;
     if (c.durationMin == null) return toast("Add a duration");
     await saveEntry({
-      id:`cardio-${S.active.date}-${S.active.sessionId}`, ts:Date.now(), type:"cardio",
-      date:S.active.date, sessionId:S.active.sessionId, sessionName:S.active.sessionName,
+      // Reuse the id already on file so an edit supersedes rather than duplicates.
+      id: a.cardioId || `cardio-${a.date}-${a.sessionId}`, ts:Date.now(), type:"cardio",
+      date:a.date, sessionId:a.sessionId, sessionName:a.sessionName,
       ...c, deleted:false
     });
   }
-  const name = S.active.sessionName;
+  const {sessionName:name, date, sessionId} = a;
   S.active = null; S.rest = null;
   await setMeta("active", null); await setMeta("rest", null);
-  releaseWake(); go("today"); toast("Session saved");
+  releaseWake();
+  // A backfill came from history — put them back where they were, not on Today.
+  if (past){ openDetail(date, sessionId); toast("Session saved"); }
+  else { go("today"); toast("Session saved"); }
   clearTimeout(_syncT); Sync.run("after " + name);
 }
 
@@ -1070,6 +1177,8 @@ function viewToday(){
       </div>
     </div>
 
+    <button class="btn ghost slim" onclick="sheetPickDay()" style="margin-top:0">Log or edit an earlier day</button>
+
     <h2>Log something else</h2>
     <div class="picks">
       ${Object.entries(ROUTINE.sessions).filter(([k,v]) => v.kind !== "rest" && k !== sid).map(([k,v]) =>
@@ -1092,22 +1201,24 @@ function viewSession(){
   const total = a.exercises.reduce((n,e) => n + e.sets.length, 0);
   const done  = a.exercises.reduce((n,e) => n + e.sets.filter(s => s.done).length, 0);
   const mins  = Math.floor((Date.now() - a.startedAt)/6e4);
+  const past  = a.date !== today();
 
   return `<div class="shead">
       <div class="between">
         <div class="grow">
           <div class="t">${esc(a.sessionName)}</div>
-          <div class="s">Block ${a.block} · ${done}/${total} sets · ${mins} min</div>
+          <div class="s">Block ${a.block} · ${done}/${total} sets${past ? "" : ` · ${mins} min`}</div>
         </div>
         <button class="iconbtn" onclick="closeSession()">${ICON.x}</button>
       </div>
       <div class="prog"><i style="width:${total?done/total*100:0}%"></i></div>
+      ${past ? `<div class="editing"><i></i>Logging to ${esc(dayLabelLong(a.date))}</div>` : ""}
     </div>
     <div class="scroll" style="padding-top:14px;padding-bottom:${S.rest?"140px":"40px"}">
       ${(prs => a.exercises.map((e,i) => exCard(e,i,prs)).join(""))(prIds(a.exercises.map(e => e.id)))}
       ${quickAdds()}
       <button class="addex" onclick="sheetAddExercise()">+  Add exercise</button>
-      <button class="btn ghost" onclick="finishSession()">Finish session</button>
+      <button class="btn ghost" onclick="finishSession()">${past ? "Done" : "Finish session"}</button>
     </div>`;
 }
 
@@ -1154,12 +1265,14 @@ function setRow(ex, i, st, j, prs){
     <div class="fld ${sug}">
       <input class="v num" type="number" inputmode="decimal" step="0.5" value="${st.weight ?? ""}"
              placeholder="${gh ? fmtW(gh.weight) : "—"}" onfocus="this.select()"
-             oninput="setVal(${i},${j},'weight',this.value)"><span class="u">lb</span>
+             oninput="setVal(${i},${j},'weight',this.value)"
+             onchange="commitEdit(${i},${j},this)"><span class="u">lb</span>
     </div>`}
     <div class="fld ${sug}">
       <input class="v num" type="number" inputmode="numeric" value="${st.reps ?? ""}"
              placeholder="${gh ? gh.reps : "—"}" onfocus="this.select()"
-             oninput="setVal(${i},${j},'reps',this.value)"><span class="u">${ex.perSide?"ea":"reps"}</span>
+             oninput="setVal(${i},${j},'reps',this.value)"
+             onchange="commitEdit(${i},${j},this)"><span class="u">${ex.perSide?"ea":"reps"}</span>
     </div>
     ${pr ? `<span class="prtag" title="Best estimated 1RM for this lift">PR</span>` : ""}
     <button class="chk" onclick="${st.done?`unlogSet(${i},${j})`:`logSet(${i},${j})`}">${ICON.check}</button>
@@ -1171,7 +1284,7 @@ function setRow(ex, i, st, j, prs){
     <button onclick="bump(${i},${j},'reps',1)">+1</button>
     <input class="rpe num" type="number" inputmode="decimal" step="0.5" min="1" max="10"
            value="${st.rpe ?? ""}" placeholder="RPE" onfocus="this.select()"
-           oninput="setVal(${i},${j},'rpe',this.value)">
+           oninput="setVal(${i},${j},'rpe',this.value)" onchange="commitEdit(${i},${j},this)">
     <button class="notebtn ${st.notes?"has":""}" onclick="sheetNote('set',${i},${j})" title="Note">${ICON.note}</button>
   </div>` : ""}
   ${st.notes ? `<div class="setnotetext" onclick="sheetNote('set',${i},${j})">${esc(st.notes)}</div>` : ""}`;
@@ -1264,8 +1377,27 @@ function addSet(i){
   ex.sets.push({reps:lastSet.reps ?? ex.target.lo, weight:lastSet.weight ?? null, rpe:null, done:false, suggested:false, entryId:null});
   persistActive(); render();
 }
+/** Cardio fields differ from whatever is on file for this session. */
+function cardioDirty(a){
+  const c = a.cardio, e = a.cardioId && S.entries.find(x => x.id === a.cardioId && !x.deleted);
+  if (!e) return c.durationMin != null || c.distanceKm != null || !!c.notes;
+  return c.durationMin !== (e.durationMin ?? null) || c.distanceKm !== distKm(e)
+      || c.avgPower !== (e.avgPower ?? null) || c.avgHr !== (e.avgHr ?? null)
+      || c.rpe !== (e.rpe ?? null) || (c.notes || "") !== (e.notes || "");
+}
+
 function closeSession(){
-  const any = S.active.exercises.some(e => e.sets.some(s => s.done)) || (S.active.cardio && S.active.cardio.durationMin != null);
+  const a = S.active;
+  const any = a.exercises.some(e => e.sets.some(s => s.done)) || (a.cardio && a.cardio.durationMin != null);
+  commitAll();
+  if (a.date !== today()){
+    // Sets save as they're ticked, so closing loses nothing — except on the
+    // cardio screen, where the numbers only land on Save.
+    if (a.cardio && cardioDirty(a) && !confirm("Discard the changes to this ride?")) return;
+    S.active = null; setMeta("active", null); releaseWake();
+    if (any) openDetail(a.date, a.sessionId); else go("history");
+    return;
+  }
   if (any) { go("today"); toast("Session kept — resume from Today"); }
   else { S.active = null; setMeta("active", null); releaseWake(); go("today"); }
 }
@@ -1280,12 +1412,13 @@ function viewCardio(){
       <span class="u">${unit}</span></div>`;
   return `<div class="shead">
       <div class="between">
-        <div class="grow"><div class="t">${esc(a.sessionName)}</div><div class="s">${esc(s.tag||"")}</div></div>
+        <div class="grow"><div class="t">${esc(a.sessionName)}</div><div class="s">${esc((s&&s.tag)||"")}</div></div>
         <button class="iconbtn" onclick="closeSession()">${ICON.x}</button>
       </div>
+      ${a.date !== today() ? `<div class="editing"><i></i>Logging to ${esc(dayLabelLong(a.date))}</div>` : ""}
     </div>
     <div class="scroll" style="padding-top:16px">
-      ${s.detail ? `<div class="card" style="color:var(--text-2);font-size:14px">${esc(s.detail)}</div>` : ""}
+      ${s && s.detail ? `<div class="card" style="color:var(--text-2);font-size:14px">${esc(s.detail)}</div>` : ""}
       <div class="card">
         ${f("Duration","durationMin","min")}
         ${f("Distance","distanceKm","km",.1)}
@@ -1296,6 +1429,97 @@ function viewCardio(){
       </div>
       <button class="btn" onclick="finishSession()">Save session</button>
     </div>`;
+}
+
+/* ==========================================================================
+   Earlier days — pick a date, then log a session onto it or open one already
+   logged. Nothing here is a separate code path: it hands the date to
+   startSession and the normal session screen does the rest.
+   ========================================================================== */
+const dayLabelLong = d => new Date(d+"T00:00:00").toLocaleDateString(undefined,{weekday:"long", month:"long", day:"numeric"});
+const sessionsOn   = date => sessionList().filter(s => s.date === date);
+const mobilityOn   = date => !!S.entries.find(e => e.id === "mob-" + date && !e.deleted);
+
+function sheetPickDay(){
+  S.sheet = () => `<div class="mask" onclick="if(event.target===this){S.sheet=null;render()}">
+    <div class="sheet">
+      <h4>Another day</h4>
+      <div class="sub" style="margin-bottom:12px">Log a session you missed, or fix one you already logged.</div>
+      <input type="date" id="pickdate" max="${today()}" value="${today()}"
+             onchange="if(this.value)sheetDay(this.value)">
+      <div class="daylist">${lastDays(14).map(dayRow).join("")}</div>
+      <button class="btn ghost slim" onclick="S.sheet=null;render()">Cancel</button>
+    </div></div>`;
+  render();
+}
+
+const lastDays = n => Array.from({length:n}, (_, i) => shiftDate(today(), -i));
+
+function dayRow(d){
+  const ss = sessionsOn(d), mob = mobilityOn(d);
+  const sched = ROUTINE.sessions[ROUTINE.week[new Date(d+"T00:00:00").getDay()]];
+  const sum = ss.length
+    ? ss.map(s => s.sessionName).join(" · ") + (mob ? " · mobility" : "")
+    : mob ? "Mobility only"
+    : "Nothing logged" + (sched && sched.kind !== "rest" ? ` · ${sched.name} scheduled` : "");
+  const dt = new Date(d+"T00:00:00");
+  return `<button class="hitem" onclick="sheetDay('${d}')">
+    <div class="dt">
+      <div class="d num">${dt.getDate()}</div>
+      <div class="m">${dt.toLocaleDateString(undefined,{weekday:"short"})}</div>
+    </div>
+    <div class="vline"></div>
+    <div class="grow">
+      <div class="nm trunc">${d === today() ? "Today" : dt.toLocaleDateString(undefined,{month:"short", day:"numeric"})}</div>
+      <div class="sm trunc" style="color:${ss.length ? "var(--text-2)" : "var(--text-3)"}">${esc(sum)}</div>
+    </div>
+    <span style="color:var(--text-3)">${ICON.chev}</span>
+  </button>`;
+}
+
+/* Recomputed on every render so ticking mobility from inside the sheet shows up. */
+function sheetDay(date){
+  S.sheet = () => {
+    const ss = sessionsOn(date), mob = mobilityOn(date);
+    const sid = ROUTINE.week[new Date(date+"T00:00:00").getDay()];
+    return `<div class="mask" onclick="if(event.target===this){S.sheet=null;render()}">
+      <div class="sheet">
+        <h4 class="trunc">${date === today() ? "Today" : esc(dayLabelLong(date))}</h4>
+        ${ss.length ? `<h2 style="margin:0 0 9px">Logged</h2>
+          ${ss.map(s => `<button class="hitem" onclick="editSession('${s.date}','${s.sessionId}')">
+            <div class="grow"><div class="nm trunc">${esc(s.sessionName)}</div>
+              <div class="sm">${s.type === "cardio" ? "Ride" : s.entries.filter(e => e.type === "set").length + " sets"} · tap to edit</div></div>
+            <span style="color:var(--text-3)">${ICON.chev}</span></button>`).join("")}` : ""}
+        <h2 style="margin:${ss.length ? "18px" : "0"} 0 9px">${ss.length ? "Log another" : "Log a session"}</h2>
+        <div class="picks">
+          ${Object.entries(ROUTINE.sessions).filter(([k,v]) => v.kind !== "rest" && !ss.some(s => s.sessionId === k)).map(([k,v]) =>
+            `<button class="pick" onclick="editSession('${date}','${k}')">
+               <div class="bar" style="background:${v.kind === "cardio" ? "var(--cyan)" : "var(--lime)"};${k === sid ? "" : "opacity:.35"}"></div>
+               <div class="n">${esc(v.name)}</div>
+               <div class="d">${k === sid ? "Scheduled that day" : esc(v.tag || "")}</div>
+             </button>`).join("")}
+        </div>
+        <button class="opt ${mob ? "on" : ""}" style="width:100%;margin-top:12px" onclick="toggleMobility('${date}')">
+          ${mob ? "✓ Mobility done" : "Mark mobility done"}
+        </button>
+        <button class="btn ghost slim" onclick="sheetPickDay()">Pick a different day</button>
+        <button class="btn ghost slim" onclick="S.sheet=null;render()">Close</button>
+      </div></div>`;
+  };
+  render();
+}
+
+async function deleteSession(date, sid){
+  const s = sessionList().find(x => x.date === date && x.sessionId === sid);
+  if (!s) return;
+  if (!confirm(`Delete ${s.sessionName} on ${fmtDay(date)}? Every set and note logged for it goes with it.`)) return;
+  // Tombstones, not removals — a delete has to survive the merge on other devices.
+  for (const e of s.entries) if (!e.deleted) await saveEntry({...e, deleted:true, ts:Date.now()});
+  if (S.active && S.active.date === date && S.active.sessionId === sid){
+    S.active = null; await setMeta("active", null); releaseWake();
+  }
+  S.detail = null; S.view = "history"; render(); toast("Session deleted");
+  syncSoon("delete session", 4000);
 }
 
 /* ---------- History ---------- */
@@ -1331,9 +1555,14 @@ function viewHistory(){
   const byMonth = {};
   list.forEach(s => { const k = new Date(s.date+"T00:00:00").toLocaleDateString(undefined,{month:"long", year:"numeric"}); (byMonth[k] ||= []).push(s); });
   return `<div class="scroll">
-    <div class="top"><h1>History</h1></div>
+    <div class="top">
+      <h1>History</h1>
+      <button class="chip" onclick="sheetPickDay()" style="color:var(--accent)">+ Earlier day</button>
+    </div>
     ${list.length ? Object.entries(byMonth).map(([m, ss]) => `<h2>${m}</h2>${ss.map(hItem).join("")}`).join("")
-      : `<div class="empty">Nothing logged yet.<br>Sessions you complete will land here.</div>`}
+      : `<div class="empty">Nothing logged yet.<br>Sessions you complete will land here.<br>
+           <button class="btn slim" style="max-width:260px;margin:16px auto 0" onclick="sheetPickDay()">Log an earlier day</button>
+         </div>`}
   </div>`;
 }
 
@@ -1380,6 +1609,12 @@ function viewDetail(){
       <button class="iconbtn" onclick="S.detail=null;render()">${ICON.x}</button>
     </div>
     <div style="margin-top:16px">${body}</div>
+    <div class="row" style="gap:10px;align-items:stretch">
+      <button class="btn slim" style="margin-top:0" onclick="editSession('${s.date}','${s.sessionId}')">Edit session</button>
+      <button class="btn ghost slim" style="margin-top:0;flex:0 0 108px;color:var(--red)"
+              onclick="deleteSession('${s.date}','${s.sessionId}')">Delete</button>
+    </div>
+    <div class="foot">Editing reopens the session on ${esc(fmtDay(s.date))} — anything you log there is dated that day.</div>
   </div>`;
 }
 
@@ -1470,8 +1705,10 @@ function cardHeatmap(win){
     if (d <= now && (v.s || v.c)) trained++;
     const target = v.s || v.c;
     const what = [v.s && "lift", v.c && "ride", v.m && "mobility"].filter(Boolean).join(" + ") || "nothing";
+    // A logged day opens the session; an empty past day offers to fill it in.
+    const tap = target ? `openDetail('${d}','${target}')` : d <= now ? `sheetDay('${d}')` : "";
     cells.push(`<i class="${cls}${d > now ? " ahead" : ""}" title="${fmtDay(d)} — ${what}"
-      ${target ? `onclick="openDetail('${d}','${target}')"` : ""}></i>`);
+      ${tap ? `onclick="${tap}"` : ""}></i>`);
   }
   // Consecutive days ending today (or yesterday, if today is still open) with a session.
   let c = now;
@@ -1887,8 +2124,11 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
     S.rest = S.meta.rest || null;
     if (S.rest && restLeft() < -30) { S.rest = null; setMeta("rest", null); }
 
+    // A backfill in progress is worth keeping across a reload, but only while
+    // it's still plausibly the same piece of work.
     const a = S.meta.active;
     if (a && a.date === today()) { S.active = a; reqWake(); }
+    else if (a && a.date >= shiftDate(today(), -14)) S.active = a;
     else if (a) setMeta("active", null);
 
     Sync.state.last = S.meta.lastSync || null;
@@ -1912,7 +2152,9 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
 // expose handlers used from inline attributes
 Object.assign(window, {go, startSession, logSet, unlogSet, finishSession, closeSession, toggleMobility,
   setVal, bump, focusEx, addSet, openDetail, setBlock, sheetAddExercise, confirmAddExercise, stepIn, quickAdd,
+  commitEdit, commitAll, commitSet, cardioDirty,
   exportJSON, importJSON, adjustRest, skipRest, blockInfo, num, persistActive, S, DB,
   Sync, connectSync, disconnectSync, mergeEntries, sheetNote, saveNote, exNote, distKm,
+  sheetPickDay, sheetDay, editSession, deleteSession, dayLabelLong, sessionsOn, mobilityOn, shiftDate,
   setRange, setStatsExercise, toggleGroup, e1rm, groupOf, bestSet, prIds, progression, weekStart});
 </script>

@@ -14,6 +14,29 @@ Served at `https://reynoldsjon-eng.github.io/workout-tracker/`.
 | `manifest.json` | PWA metadata for Add to Home Screen |
 | `icon-*.png` | Home screen icons |
 
+## Earlier days
+
+Sessions don't have to be logged the day they happen.
+
+- **Today → Log or edit an earlier day**, **History → + Earlier day**, or a tap on any
+  empty square in the Stats heatmap opens a day picker — the last fortnight at a
+  glance, plus a date field for anything older.
+- Picking a day lists what's already logged there and what you can add. Both land on
+  the normal session screen, dated to that day, with an amber **Logging to…** banner
+  so a backfill is never mistaken for a live session. The rest timer stays out of it.
+- Opening a session that's already logged brings its sets back ticked and editable.
+  Retype a weight or reps and it saves on blur, to the same entry — no duplicates.
+  Untick a set to drop it.
+- **History → a session → Edit session** is the same screen, and **Delete** removes a
+  session outright.
+
+Weight suggestions and the "Last …" line come from the session before the day you're
+editing, not from the newest one, so backfilling last week doesn't quote next week
+back at you. The block is taken from what the sets were logged under.
+
+Nothing here is destructive: edits reuse the entry's id and deletes write tombstones,
+so an edit made on the phone still merges cleanly with a laptop that never saw it.
+
 ## Stats
 
 A fourth tab, over a 6-week / 6-month / all-time window:

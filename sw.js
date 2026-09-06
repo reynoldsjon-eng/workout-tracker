@@ -10,7 +10,7 @@
  * Offline still works: every network-first response is mirrored into the cache
  * and served from there the moment fetch fails.
  */
-const CACHE = "training-v2";
+const CACHE = "training-v3";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-180.png"];
 const IMMUTABLE = /\.(png|ico|svg|woff2?)$/i;
 

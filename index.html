@@ -289,6 +289,23 @@ select.sel{
 }
 .foot{font-size:12px;color:var(--text-3);line-height:1.45;margin-top:14px}
 
+/* ---------- equipment settings ---------- */
+.gset{
+  display:flex;align-items:baseline;justify-content:space-between;gap:14px;width:100%;text-align:left;
+  padding:12px 0;border-bottom:1px solid var(--line-soft)
+}
+.gset:last-of-type{border-bottom:0}
+.gset .l{font-size:14.5px;color:var(--text-2);flex:none}
+.gset .v{font-size:15.5px;font-weight:650;text-align:right;min-width:0}
+/* On the exercise card the settings compete with the sets for attention, so
+   they shrink to chips rather than rows. */
+.gearstrip{display:flex;flex-wrap:wrap;gap:7px;padding:2px 0 12px}
+.gearchip{
+  display:inline-flex;align-items:baseline;gap:6px;padding:6px 10px;border-radius:9px;
+  background:var(--surface);border:1px solid var(--line-soft);font-size:12.5px;color:var(--text-3)
+}
+.gearchip b{font-weight:650;color:var(--text-2)}
+
 /* ---------- tabs ---------- */
 .tabs{
   position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;
@@ -320,6 +337,7 @@ select.sel{
 
 .toast{
   position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabh) + 18px);z-index:90;
+  pointer-events:none;
   background:var(--surface-3);border:1px solid var(--line);padding:11px 17px;border-radius:11px;
   font-size:14px;font-weight:600;box-shadow:0 8px 28px rgba(0,0,0,.5);animation:up .2s
 }
@@ -414,6 +432,25 @@ const MOBILITY = [
 const REST = {A:{main:180, acc:90}, B:{main:90, acc:60}};
 
 /* ==========================================================================
+   Equipment settings — where the hardware goes for a given lift: rack holes,
+   seat heights, machine pins. It is config, not history: it has no date, it
+   changes rarely, and re-finding it costs a warm-up set every time. Stored as
+   its own entry type in the same append-only log, so it syncs and merges like
+   everything else.
+
+   This is only the starting set — everything after is added in the app.
+   ========================================================================== */
+const GEAR_SEED = [
+  {exerciseId:"bench-press", exerciseName:"Barbell Bench Press", label:"J-clips",      value:"Just under hole 17"},
+  {exerciseId:"bench-press", exerciseName:"Barbell Bench Press", label:"Squatter bar", value:"Just under hole 9"}
+];
+
+/* Offered as suggestions when naming a setting — the rack and the machines
+   have the same handful of adjustments over and over. */
+const GEAR_LABELS = ["J-clips","Squatter bar","Safety pins","Bar height","Seat height","Back pad",
+                     "Pin / stack","Foot plate","Handle position","Strap length","Bench angle"];
+
+/* ==========================================================================
    Storage — IndexedDB. `entries` is an append-only log: every set, ride and
    mobility tick is one record with its own id and ts. Edits supersede by id,
    deletes are tombstones. That makes cross-device merging lossless later.
@@ -483,6 +520,8 @@ const iso   = d => { const x = d || new Date(); return new Date(x.getTime() - x.
 const today = () => iso();
 const esc   = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num   = v => (v === "" || v == null || isNaN(+v)) ? null : +v;
+/** A string safe to drop into an inline onclick="" as a JS argument. */
+const jsArg = v => JSON.stringify(String(v ?? "")).replace(/"/g, "&quot;");
 
 async function setMeta(k, v){ S.meta[k] = v; await DB.put("meta", {k, v}); }
 
@@ -670,6 +709,46 @@ const exNote = (date, sessionId, exerciseId) => {
   return e ? e.text : "";
 };
 
+/* ---------- equipment settings ----------
+   Keyed on exercise + label, so saving the same setting twice corrects it
+   rather than stacking a second copy. `created` fixes the display order; `ts`
+   is left free to move on every write, which is what the merge sorts on. */
+const slugify = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const gearId  = (exerciseId, label) => `gear-${exerciseId}-${slugify(label)}`;
+const gearAll = () => S.entries.filter(e => e.type === "gear" && !e.deleted);
+const byCreated = (a, b) => (a.created || a.ts || 0) - (b.created || b.ts || 0);
+
+/** Settings for one exercise, in the order they were added. */
+const gearFor = exerciseId => gearAll().filter(e => e.exerciseId === exerciseId).sort(byCreated);
+
+/** Every exercise carrying settings, routine order first, then the rest. */
+function gearList(){
+  const order = [...knownExercises().keys()];
+  const m = new Map();
+  for (const e of gearAll().sort(byCreated)){
+    if (!m.has(e.exerciseId)) m.set(e.exerciseId, {id:e.exerciseId, name:e.exerciseName || e.exerciseId, items:[]});
+    m.get(e.exerciseId).items.push(e);
+  }
+  const rank = id => { const i = order.indexOf(id); return i < 0 ? 1e6 : i; };
+  return [...m.values()].sort((a, b) => rank(a.id) - rank(b.id) || (a.name < b.name ? -1 : 1));
+}
+
+/* Seeded once, and only when the log holds no equipment entry at all —
+   tombstones included. A device that has already synced has the real set by
+   then, so this can never resurrect something deleted on another phone. */
+async function seedGear(){
+  if (S.meta.gearSeeded) return;
+  await setMeta("gearSeeded", true);
+  if (S.entries.some(e => e.type === "gear")) return;
+  const ts = Date.now();
+  for (let i = 0; i < GEAR_SEED.length; i++){
+    const g = GEAR_SEED[i];
+    await saveEntry({id:gearId(g.exerciseId, g.label), ts:ts + i, created:ts + i, type:"gear", ...g});
+  }
+  syncSoon("equipment", 8000);
+  renderSafe();
+}
+
 /** Most recent session's sets for an exercise, strictly before `beforeDate`. */
 function lastPerf(exerciseId, beforeDate){
   const rows = sets().filter(e => e.exerciseId === exerciseId && e.date < beforeDate);
@@ -690,7 +769,7 @@ function mobilityStreak(){
 function sessionList(){
   const map = new Map();
   for (const e of S.entries){
-    if (e.deleted || e.type === "mobility") continue;
+    if (e.deleted || e.type === "mobility" || e.type === "gear") continue;
     const key = e.date + "|" + e.sessionId;
     if (!map.has(key)) map.set(key, {date:e.date, sessionId:e.sessionId, sessionName:e.sessionName, entries:[]});
     map.get(key).entries.push(e);
@@ -1064,7 +1143,22 @@ document.addEventListener("visibilitychange", () => {
    Views
    ========================================================================== */
 const go = v => { S.view = v; S.detail = null; window.scrollTo(0,0); render(); };
-function toast(msg){ S.toast = msg; render(); clearTimeout(toast._t); toast._t = setTimeout(() => { S.toast = null; render(); }, 2000); }
+/* The dismissal re-renders, which would blow away whatever is half-typed in a
+   sheet — save a setting, open the next one, and your typing vanishes two
+   seconds later. So when a field has focus the toast is lifted out of the DOM
+   directly instead. */
+function toast(msg){
+  S.toast = msg; render();
+  clearTimeout(toast._t);
+  const clear = () => {
+    S.toast = null;
+    const el = document.querySelector(".toast"), a = document.activeElement;
+    // Focused field: pull the node out by hand rather than re-rendering over it.
+    if (el && a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA")) el.remove();
+    else render();
+  };
+  toast._t = setTimeout(clear, 2000);
+}
 
 const ICON = {
   today:'<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"/></svg>',
@@ -1085,6 +1179,7 @@ function render(){
   else if (S.view === "history")  html = viewHistory();
   else if (S.view === "stats")    html = viewStats();
   else if (S.view === "settings") html = viewSettings();
+  else if (S.view === "gear")     html = viewGear();
   else                            html = viewToday();
 
   if (S.view !== "session") html += tabs();
@@ -1117,7 +1212,7 @@ function syncChip(){
 
 const tabs = () => `<nav class="tabs">
   ${[["today","Today",ICON.today],["history","History",ICON.hist],["stats","Stats",ICON.stats],["settings","Settings",ICON.set]]
-    .map(([v,l,i]) => `<button class="tab ${S.view===v?"on":""}" onclick="go('${v}')">${i}<span>${l}</span></button>`).join("")}
+    .map(([v,l,i]) => `<button class="tab ${S.view===v||(v==="settings"&&S.view==="gear")?"on":""}" onclick="go('${v}')">${i}<span>${l}</span></button>`).join("")}
 </nav>`;
 
 /* ---------- Today ---------- */
@@ -1148,7 +1243,7 @@ function viewToday(){
         : "No storage is available — anything you log is lost on reload. Open the hosted URL instead of the file."}</div>
     </div>`}
 
-    ${S.entries.length ? "" : `<div class="card" style="margin-top:18px;border-color:color-mix(in srgb,var(--accent) 30%,transparent)">
+    ${S.entries.some(e => e.type !== "gear") ? "" : `<div class="card" style="margin-top:18px;border-color:color-mix(in srgb,var(--accent) 30%,transparent)">
       <div style="font-weight:650">Bring your history in</div>
       <div class="sub">Import <b>log.json</b> from the WorkoutTracker folder so past weights show up as you log.</div>
       <button class="btn slim" onclick="importJSON()">Import log.json</button>
@@ -1225,6 +1320,7 @@ function viewSession(){
 function exCard(ex, i, prs){
   const a = S.active, allDone = ex.sets.every(s => s.done), open = a.cur === i;
   const note = exNote(a.date, a.sessionId, ex.id);
+  const gear = gearFor(ex.id);
   const t = ex.target;
   const reps = t.lo === t.hi ? t.lo : `${t.lo}–${t.hi}`;
   const lastTxt = ex.last
@@ -1241,7 +1337,9 @@ function exCard(ex, i, prs){
       </div>
       ${allDone ? `<span class="pill ok">DONE</span>` : ex.main ? `<span class="pill main">MAIN</span>` : ""}
     </button>
-    ${open ? `<div class="sets">${ex.sets.map((s,j) => setRow(ex,i,s,j,prs)).join("")}
+    ${open ? `<div class="sets">
+       ${gearStrip(ex.id, ex.name)}
+       ${ex.sets.map((s,j) => setRow(ex,i,s,j,prs)).join("")}
        <div class="row" style="gap:10px;padding-top:8px">
          <button class="setnote" onclick="addSet(${i})" style="flex:1;color:var(--text-3)">+ add a set</button>
          <button class="setnote" onclick="sheetNote('ex',${i})" style="flex:none;color:${note?"var(--accent)":"var(--text-3)"}">
@@ -1352,6 +1450,125 @@ async function saveNote(kind, i, j, clear){
   }
   syncSoon("note", 8000);
   render();
+}
+
+/* ---------- equipment settings ---------- */
+
+/* Setup is read at the rack, mid-warm-up — so it sits on the exercise itself
+   while you're logging it, not only on its own screen. */
+function gearStrip(exerciseId, exerciseName){
+  const items = gearFor(exerciseId), arg = `'${exerciseId}',${jsArg(exerciseName)}`;
+  return `<div class="gearstrip">
+    ${items.map(g => `<button class="gearchip" onclick="sheetGear(${arg},'${g.id}')">
+       ${esc(g.label)} <b>${esc(g.value)}</b></button>`).join("")}
+    <button class="gearchip" onclick="sheetGear(${arg})">${items.length ? "+" : "+ setup"}</button>
+  </div>`;
+}
+
+function sheetGear(exerciseId, exerciseName, id){
+  const cur = id ? S.entries.find(x => x.id === id && !x.deleted) : null;
+  S.sheet = () => `<div class="mask" onclick="if(event.target===this){S.sheet=null;render()}">
+    <div class="sheet">
+      <h4 class="trunc">${esc(exerciseName)}${cur ? "" : " · setup"}</h4>
+      <input type="text" id="gear-label" list="gearlabels" placeholder="What's set — J-clips, seat height…"
+             value="${esc(cur ? cur.label : "")}" autocomplete="off" autocapitalize="words">
+      <datalist id="gearlabels">${GEAR_LABELS.map(l => `<option value="${esc(l)}">`).join("")}</datalist>
+      <input type="text" id="gear-value" placeholder="Where it goes — just under hole 17"
+             value="${esc(cur ? cur.value : "")}" autocomplete="off" style="margin-top:10px">
+      <button class="btn" onclick="saveGear('${exerciseId}',${jsArg(exerciseName)}${cur ? `,'${cur.id}'` : ""})">Save</button>
+      ${cur ? `<button class="btn ghost slim" onclick="deleteGear('${cur.id}')">Delete</button>` : ""}
+      <button class="btn ghost slim" onclick="S.sheet=null;render()">Cancel</button>
+    </div></div>`;
+  render();
+  setTimeout(() => { const el = document.getElementById(cur ? "gear-value" : "gear-label"); if (el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 60);
+}
+
+async function saveGear(exerciseId, exerciseName, prevId){
+  const label = (document.getElementById("gear-label").value || "").trim();
+  const value = (document.getElementById("gear-value").value || "").trim();
+  if (!label) return toast("Name the setting");
+  if (!value) return toast("Say where it goes");
+
+  const id = gearId(exerciseId, label);
+  const prev = prevId && S.entries.find(x => x.id === prevId);
+  // Renaming the label moves the entry to a new id — retire the old one so the
+  // rename doesn't leave a duplicate behind.
+  if (prev && prev.id !== id) await saveEntry({...prev, ts:Date.now(), deleted:true});
+  const existing = S.entries.find(x => x.id === id);
+
+  S.sheet = null;
+  await saveEntry({
+    id, ts:Date.now(), created:(prev && prev.created) || (existing && existing.created) || Date.now(),
+    type:"gear", exerciseId, exerciseName, label, value, deleted:false
+  });
+  syncSoon("equipment", 8000);
+  render(); toast("Saved");
+}
+
+async function deleteGear(id){
+  const e = S.entries.find(x => x.id === id);
+  if (!e) return;
+  S.sheet = null;
+  await saveEntry({...e, ts:Date.now(), deleted:true});
+  syncSoon("equipment", 8000);
+  render(); toast("Removed");
+}
+
+/* Adding setup for something that isn't on screen — same exercise list the
+   add-exercise sheet uses, so a substitution you've logged before is one tap. */
+function sheetGearExercise(){
+  const known = [...knownExercises().entries()];
+  S.sheet = () => `<div class="mask" onclick="if(event.target===this){S.sheet=null;render()}">
+    <div class="sheet">
+      <h4>Setup for…</h4>
+      <input type="text" id="gear-ex" list="gearexlist" placeholder="Exercise name" autocomplete="off">
+      <datalist id="gearexlist">${known.map(([, n]) => `<option value="${esc(n)}">`).join("")}</datalist>
+      <button class="btn" onclick="confirmGearExercise()">Next</button>
+      <button class="btn ghost slim" onclick="S.sheet=null;render()">Cancel</button>
+    </div></div>`;
+  render();
+  setTimeout(() => document.getElementById("gear-ex")?.focus(), 60);
+}
+
+function confirmGearExercise(){
+  const name = document.getElementById("gear-ex").value.trim();
+  const match = [...knownExercises().entries()].find(([, v]) => v.toLowerCase() === name.toLowerCase());
+  const id = match ? match[0] : slugify(name);
+  if (!id) return toast("Name the exercise");
+  sheetGear(id, match ? match[1] : name);
+}
+
+function viewGear(){
+  const list = gearList();
+  return `<div class="scroll">
+    <div class="top">
+      <div class="grow">
+        <h1>Equipment</h1>
+        <div class="sub">Where the hardware goes. Shown on the exercise while you log it.</div>
+      </div>
+      <button class="chip" onclick="go('settings')">Done</button>
+    </div>
+
+    ${list.length ? list.map(g => `
+      <h2>${esc(g.name)}</h2>
+      <div class="card">
+        ${g.items.map(it => `<button class="gset" onclick="sheetGear('${g.id}',${jsArg(g.name)},'${it.id}')">
+            <span class="l">${esc(it.label)}</span>
+            <span class="v trunc">${esc(it.value)}</span>
+          </button>`).join("")}
+        <button class="btn ghost slim" onclick="sheetGear('${g.id}',${jsArg(g.name)})">+ Setting</button>
+      </div>`).join("")
+    : `<div class="card" style="margin-top:18px">
+        <div style="font-weight:650">Nothing recorded yet</div>
+        <div class="sub">Rack holes, bench angles, seat heights, pin positions — anything you would
+        otherwise re-find every week.</div>
+      </div>`}
+
+    <button class="btn ghost" onclick="sheetGearExercise()">+ Add for an exercise</button>
+    <div class="sub" style="margin:12px 0 0;color:var(--text-3)">
+      Settings ride along with the log, so they sync to your other devices like everything else.
+    </div>
+  </div>`;
 }
 
 function quickAdd(id, name){
@@ -1950,6 +2167,19 @@ function viewSettings(){
       <button class="btn ghost slim" onclick="setBlock(blockInfo().block, true)">Restart block at today</button>
     </div>
 
+    <h2>Equipment</h2>
+    <div class="card">
+      <div class="between" style="padding-bottom:12px">
+        <span class="dim">Saved settings</span>
+        <b class="num">${gearAll().length}</b>
+      </div>
+      <div class="sub" style="border-top:1px solid var(--line-soft);padding-top:12px;color:var(--text-3)">
+        Rack holes, seat heights, machine pins — recorded once per exercise and shown
+        on the card while you log it.
+      </div>
+      <button class="btn ghost slim" onclick="go('gear')">Equipment settings</button>
+    </div>
+
     <h2>Sync</h2>
     ${viewSync()}
 
@@ -2133,7 +2363,9 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
 
     Sync.state.last = S.meta.lastSync || null;
     render();
-    Sync.run("launch");
+    // After sync, not before: a device that already has the real set — deletes
+    // included — must not have the starting set written back over it.
+    Sync.run("launch").then(seedGear, seedGear);
   }catch(err){
     // Never fail to a black screen — say what broke.
     document.getElementById("app").innerHTML = `<div class="scroll">
@@ -2156,5 +2388,6 @@ Object.assign(window, {go, startSession, logSet, unlogSet, finishSession, closeS
   exportJSON, importJSON, adjustRest, skipRest, blockInfo, num, persistActive, S, DB,
   Sync, connectSync, disconnectSync, mergeEntries, sheetNote, saveNote, exNote, distKm,
   sheetPickDay, sheetDay, editSession, deleteSession, dayLabelLong, sessionsOn, mobilityOn, shiftDate,
-  setRange, setStatsExercise, toggleGroup, e1rm, groupOf, bestSet, prIds, progression, weekStart});
+  setRange, setStatsExercise, toggleGroup, e1rm, groupOf, bestSet, prIds, progression, weekStart,
+  sheetGear, saveGear, deleteGear, sheetGearExercise, confirmGearExercise, gearFor, gearAll, gearList});
 </script>

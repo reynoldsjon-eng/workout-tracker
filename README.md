@@ -37,6 +37,25 @@ back at you. The block is taken from what the sets were logged under.
 Nothing here is destructive: edits reuse the entry's id and deletes write tombstones,
 so an edit made on the phone still merges cleanly with a laptop that never saw it.
 
+## Equipment
+
+The rack and the machines get set the same way every week, and re-finding the right
+hole mid-warm-up is its own small tax. **Settings → Equipment settings** keeps a
+label/value pair per exercise — *J-clips → just under hole 17* — and the same
+settings show as chips on the exercise card while you're logging it, which is where
+you actually need them.
+
+- A setting is keyed on exercise + label, so saving the same label twice corrects it
+  rather than stacking a duplicate. Renaming a label moves the entry and retires the
+  old one.
+- They're `gear` entries in the same append-only log, so they sync, merge and export
+  with everything else. They carry no date — this is config, not history — so they
+  stay out of sessions, stats and the heatmap.
+- The two bench-press settings in `GEAR_SEED` are the starting set, written once on
+  a device that has no equipment entries at all (tombstones included, so a device
+  that has already synced never gets them written back over its own). Everything
+  after is added in the app and lives only in the private log.
+
 ## Stats
 
 A fourth tab, over a 6-week / 6-month / all-time window:

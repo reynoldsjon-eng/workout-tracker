@@ -189,6 +189,21 @@ h2{font-size:13px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
   background:var(--surface);border:1px solid var(--line-soft);border-radius:10px;white-space:pre-wrap
 }
 
+/* A note written last time, standing against this week's work. Amber, not the
+   accent — it's a reminder to act on, not a record of what happened. Always
+   dated: a plan from three weeks ago should not read like yesterday's. */
+.carry{
+  width:100%;text-align:left;font-size:13.5px;color:var(--text-2);line-height:1.45;white-space:pre-wrap;
+  padding:9px 12px;margin-top:9px;border-radius:0 10px 10px 0;
+  border-left:2px solid color-mix(in srgb,var(--amber) 60%,transparent);
+  background:color-mix(in srgb,var(--amber) 7%,transparent)
+}
+.carry .w{
+  display:block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--amber);opacity:.9;margin-bottom:3px
+}
+.carry + .carry{margin-top:8px}
+
 .addex{width:100%;padding:14px;border-radius:var(--r);border:1px dashed var(--line);color:var(--text-2);font-weight:600;font-size:14.5px;margin-bottom:12px}
 .addex:active{border-color:var(--accent);color:var(--accent)}
 
@@ -442,12 +457,12 @@ const REST = {A:{main:180, acc:90}, B:{main:90, acc:60}};
    ========================================================================== */
 const GEAR_SEED = [
   {exerciseId:"bench-press", exerciseName:"Barbell Bench Press", label:"J-clips",      value:"Just under hole 17"},
-  {exerciseId:"bench-press", exerciseName:"Barbell Bench Press", label:"Squatter bar", value:"Just under hole 9"}
+  {exerciseId:"bench-press", exerciseName:"Barbell Bench Press", label:"Smarter bar",  value:"Just under hole 9"}
 ];
 
 /* Offered as suggestions when naming a setting — the rack and the machines
    have the same handful of adjustments over and over. */
-const GEAR_LABELS = ["J-clips","Squatter bar","Safety pins","Bar height","Seat height","Back pad",
+const GEAR_LABELS = ["J-clips","Smarter bar","Safety pins","Bar height","Seat height","Back pad",
                      "Pin / stack","Foot plate","Handle position","Strap length","Bench angle"];
 
 /* ==========================================================================
@@ -708,6 +723,51 @@ const exNote = (date, sessionId, exerciseId) => {
   const e = S.entries.find(x => x.id === `exnote-${date}-${sessionId}-${exerciseId}` && !x.deleted);
   return e ? e.text : "";
 };
+
+/** Free-text note attached to a whole session. */
+const sesNote = (date, sessionId) => {
+  const e = S.entries.find(x => x.id === `sesnote-${date}-${sessionId}` && !x.deleted);
+  return e ? e.text : "";
+};
+
+/* ---------- notes carried forward ----------
+   A note written at the end of a session is nearly always aimed at the next
+   one — "go up 5 lb", "slower eccentric", "the left knee didn't like this".
+   Filed in history it is worth nothing, so the last note written for a lift
+   stands against the next time that lift comes round. Never prefilled into
+   this week's note: it is last week's thinking, and it says so. */
+const newestOf = rows => rows.length ? rows.reduce((m, e) => e.date > m.date ? e : m) : null;
+
+/** Last note written for a lift before `beforeDate` — {date, text} or null. */
+function lastExNote(exerciseId, beforeDate){
+  const n = newestOf(S.entries.filter(e => e.type === "exnote" && !e.deleted && e.text
+                                        && e.exerciseId === exerciseId && e.date < beforeDate));
+  return n ? {date:n.date, text:n.text} : null;
+}
+
+/** Same for the session as a whole. A ride's own notes field counts as one. */
+function lastSessionNote(sessionId, beforeDate){
+  const n = newestOf(S.entries.filter(e => !e.deleted && e.date < beforeDate && e.sessionId === sessionId
+    && ((e.type === "sesnote" && e.text) || (e.type === "cardio" && e.notes))));
+  return n ? {date:n.date, text:n.text || n.notes} : null;
+}
+
+/** Everything written last time that bears on `sessionId` done on `date`. */
+function carriedNotes(sessionId, date){
+  const def = ROUTINE.sessions[sessionId] || {};
+  const ids = new Map((def.exercises || []).map(e => [e.id, e.name]));
+  // Substitutions logged into this session before are part of it too.
+  for (const e of sets())
+    if (e.sessionId === sessionId && !ids.has(e.exerciseId)) ids.set(e.exerciseId, e.exerciseName);
+  const exercises = [...ids.entries()]
+    .map(([id, name]) => { const n = lastExNote(id, date); return n && {id, name, ...n}; })
+    .filter(Boolean);
+  return {session:lastSessionNote(sessionId, date), exercises};
+}
+
+/** One carried note, dated. `who` names what it was written about. */
+const carryBlock = (who, n) => n
+  ? `<div class="carry"><span class="w">${esc(who)} · ${esc(fmtDay(n.date))}</span>${esc(n.text)}</div>` : "";
 
 /* ---------- equipment settings ----------
    Keyed on exercise + label, so saving the same setting twice corrects it
@@ -1262,6 +1322,8 @@ function viewToday(){
       ${done ? `<div class="meta" style="margin-top:10px;color:var(--accent)">✓ Already logged today</div>` : ""}
     </div>
 
+    ${notesCard(sid, today())}
+
     <div class="card flush">
       <div class="mob">
         <button class="tick ${mob?"on":""}" onclick="toggleMobility('${today()}')">${ICON.check}</button>
@@ -1287,6 +1349,19 @@ function viewToday(){
   </div>`;
 }
 
+/* What was written the last time this session came round — read before you
+   start, which is the only moment it can change what you do. */
+function notesCard(sessionId, date){
+  const {session, exercises} = carriedNotes(sessionId, date);
+  if (!session && !exercises.length) return "";
+  const name = (ROUTINE.sessions[sessionId] || {}).name || sessionId;
+  return `<h2>Notes from last time</h2>
+    <div class="card">
+      ${carryBlock(name, session)}
+      ${exercises.map(n => carryBlock(n.name, n)).join("")}
+    </div>`;
+}
+
 /* ---------- Session ---------- */
 function viewSession(){
   const a = S.active;
@@ -1297,6 +1372,7 @@ function viewSession(){
   const done  = a.exercises.reduce((n,e) => n + e.sets.filter(s => s.done).length, 0);
   const mins  = Math.floor((Date.now() - a.startedAt)/6e4);
   const past  = a.date !== today();
+  const sn    = sesNote(a.date, a.sessionId);
 
   return `<div class="shead">
       <div class="between">
@@ -1310,9 +1386,12 @@ function viewSession(){
       ${past ? `<div class="editing"><i></i>Logging to ${esc(dayLabelLong(a.date))}</div>` : ""}
     </div>
     <div class="scroll" style="padding-top:14px;padding-bottom:${S.rest?"140px":"40px"}">
+      ${carryBlock("Last " + a.sessionName, lastSessionNote(a.sessionId, a.date))}
       ${(prs => a.exercises.map((e,i) => exCard(e,i,prs)).join(""))(prIds(a.exercises.map(e => e.id)))}
       ${quickAdds()}
       <button class="addex" onclick="sheetAddExercise()">+  Add exercise</button>
+      ${sn ? `<div class="exnote" style="margin:0 0 12px" onclick="sheetNote('ses')">${esc(sn)}</div>` : ""}
+      <button class="addex" onclick="sheetNote('ses')">${sn ? "Edit the session note" : "+  Note about this session"}</button>
       <button class="btn ghost" onclick="finishSession()">${past ? "Done" : "Finish session"}</button>
     </div>`;
 }
@@ -1321,6 +1400,7 @@ function exCard(ex, i, prs){
   const a = S.active, allDone = ex.sets.every(s => s.done), open = a.cur === i;
   const note = exNote(a.date, a.sessionId, ex.id);
   const gear = gearFor(ex.id);
+  const prev = lastExNote(ex.id, a.date);
   const t = ex.target;
   const reps = t.lo === t.hi ? t.lo : `${t.lo}–${t.hi}`;
   const lastTxt = ex.last
@@ -1334,6 +1414,7 @@ function exCard(ex, i, prs){
         <div class="tg">${t.sets} × ${reps}${ex.perSide?" / side":""}${ex.optional?" · optional":""}</div>
         ${lastTxt}
         ${open && ex.note ? `<div class="last dim2" style="margin-top:8px">${esc(ex.note)}</div>` : ""}
+        ${carryBlock("Last time", prev)}
       </div>
       ${allDone ? `<span class="pill ok">DONE</span>` : ex.main ? `<span class="pill main">MAIN</span>` : ""}
     </button>
@@ -1407,20 +1488,30 @@ function quickAdds(){
     </div></div>`;
 }
 
-/* Notes. Exercise-level notes are their own entry type keyed by
-   date+session+exercise, so they merge across devices like everything else.
-   Set-level notes live on the set entry itself. */
+/* Notes. Session- and exercise-level notes are their own entry types, keyed by
+   date+session(+exercise), so they merge across devices like everything else.
+   Set-level notes live on the set entry itself.
+
+   Whatever was written here last time sits under the box while you type — the
+   note you are about to write is usually an answer to it. */
 function sheetNote(kind, i, j){
-  const a = S.active, ex = a.exercises[i];
-  const cur = kind === "ex" ? exNote(a.date, a.sessionId, ex.id) : (ex.sets[j].notes || "");
-  const title = kind === "ex" ? ex.name : `${ex.name} · set ${j+1}`;
+  const a = S.active, ex = kind === "ses" ? null : a.exercises[i];
+  const cur = kind === "ses" ? sesNote(a.date, a.sessionId)
+            : kind === "ex"  ? exNote(a.date, a.sessionId, ex.id)
+            : (ex.sets[j].notes || "");
+  const title = kind === "ses" ? a.sessionName : kind === "ex" ? ex.name : `${ex.name} · set ${j+1}`;
+  const prev = kind === "ses" ? lastSessionNote(a.sessionId, a.date)
+             : kind === "ex"  ? lastExNote(ex.id, a.date) : null;
+  const ph = kind === "ses" ? "How the session went, what to change next week…"
+           : kind === "ex"  ? "How it felt, form cues, what to do next week…"
+           : "e.g. failed at 6, belt on";
   S.sheet = () => `<div class="mask" onclick="if(event.target===this){S.sheet=null;render()}">
     <div class="sheet">
       <h4 class="trunc">${esc(title)}</h4>
-      <textarea class="note" id="note-text" rows="4" placeholder="${kind==="ex"
-        ? "How it felt, form cues, niggles…" : "e.g. failed at 6, belt on"}">${esc(cur)}</textarea>
-      <button class="btn" onclick="saveNote('${kind}',${i},${j ?? -1})">Save</button>
-      ${cur ? `<button class="btn ghost slim" onclick="saveNote('${kind}',${i},${j ?? -1},true)">Clear note</button>` : ""}
+      <textarea class="note" id="note-text" rows="4" placeholder="${ph}">${esc(cur)}</textarea>
+      ${carryBlock("Last time", prev)}
+      <button class="btn" onclick="saveNote('${kind}',${i ?? -1},${j ?? -1})">Save</button>
+      ${cur ? `<button class="btn ghost slim" onclick="saveNote('${kind}',${i ?? -1},${j ?? -1},true)">Clear note</button>` : ""}
       <button class="btn ghost slim" onclick="S.sheet=null;render()">Cancel</button>
     </div></div>`;
   render();
@@ -1428,11 +1519,16 @@ function sheetNote(kind, i, j){
 }
 
 async function saveNote(kind, i, j, clear){
-  const a = S.active, ex = a.exercises[i];
+  const a = S.active, ex = kind === "ses" ? null : a.exercises[i];
   const text = clear ? "" : (document.getElementById("note-text").value || "").trim();
   S.sheet = null;
 
-  if (kind === "ex"){
+  if (kind === "ses"){
+    await saveEntry({
+      id:`sesnote-${a.date}-${a.sessionId}`, ts:Date.now(), type:"sesnote",
+      date:a.date, sessionId:a.sessionId, sessionName:a.sessionName, text, deleted:!text
+    });
+  } else if (kind === "ex"){
     await saveEntry({
       id:`exnote-${a.date}-${a.sessionId}-${ex.id}`, ts:Date.now(), type:"exnote",
       date:a.date, sessionId:a.sessionId, sessionName:a.sessionName,
@@ -1635,6 +1731,7 @@ function viewCardio(){
       ${a.date !== today() ? `<div class="editing"><i></i>Logging to ${esc(dayLabelLong(a.date))}</div>` : ""}
     </div>
     <div class="scroll" style="padding-top:16px">
+      ${carryBlock("Last " + a.sessionName, lastSessionNote(a.sessionId, a.date))}
       ${s && s.detail ? `<div class="card" style="color:var(--text-2);font-size:14px">${esc(s.detail)}</div>` : ""}
       <div class="card">
         ${f("Duration","durationMin","min")}
@@ -1753,7 +1850,7 @@ function hItem(s){
     const rows = s.entries.filter(e => e.type === "set");
     const ex = new Set(rows.map(e => e.exerciseId));
     const vol = rows.reduce((n,e) => n + (e.reps||0)*(e.weight||0), 0);
-    const notes = s.entries.filter(e => e.type === "exnote").length + rows.filter(e => e.notes).length;
+    const notes = s.entries.filter(e => e.type === "exnote" || e.type === "sesnote").length + rows.filter(e => e.notes).length;
     const pl = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
     sm = `${pl(ex.size,"exercise")} · ${pl(rows.length,"set")}${vol ? " · " + Math.round(vol).toLocaleString() + " lb" : ""}${notes ? " · " + pl(notes,"note") : ""}`;
   }
@@ -1789,6 +1886,7 @@ function viewDetail(){
   const s = sessionList().find(x => x.date === S.detail.date && x.sessionId === S.detail.sid);
   if (!s) { S.detail = null; return viewHistory(); }
   const dt = new Date(s.date+"T00:00:00");
+  const sn = sesNote(s.date, s.sessionId);
   let body;
   if (s.type === "cardio"){
     const e = s.entries[0];
@@ -1825,7 +1923,10 @@ function viewDetail(){
         <p class="sub">${dt.toLocaleDateString(undefined,{weekday:"long", month:"long", day:"numeric"})}${s.entries[0].block ? " · Block " + s.entries[0].block : ""}</p></div>
       <button class="iconbtn" onclick="S.detail=null;render()">${ICON.x}</button>
     </div>
-    <div style="margin-top:16px">${body}</div>
+    <div style="margin-top:16px">
+      ${sn ? `<div class="exnote" style="margin:0 0 12px"><b style="color:var(--text-2)">Session note</b><br>${esc(sn)}</div>` : ""}
+      ${body}
+    </div>
     <div class="row" style="gap:10px;align-items:stretch">
       <button class="btn slim" style="margin-top:0" onclick="editSession('${s.date}','${s.sessionId}')">Edit session</button>
       <button class="btn ghost slim" style="margin-top:0;flex:0 0 108px;color:var(--red)"
@@ -2389,5 +2490,6 @@ Object.assign(window, {go, startSession, logSet, unlogSet, finishSession, closeS
   Sync, connectSync, disconnectSync, mergeEntries, sheetNote, saveNote, exNote, distKm,
   sheetPickDay, sheetDay, editSession, deleteSession, dayLabelLong, sessionsOn, mobilityOn, shiftDate,
   setRange, setStatsExercise, toggleGroup, e1rm, groupOf, bestSet, prIds, progression, weekStart,
-  sheetGear, saveGear, deleteGear, sheetGearExercise, confirmGearExercise, gearFor, gearAll, gearList});
+  sheetGear, saveGear, deleteGear, sheetGearExercise, confirmGearExercise, gearFor, gearAll, gearList,
+  sesNote, lastExNote, lastSessionNote, carriedNotes, notesCard});
 </script>

@@ -37,6 +37,26 @@ back at you. The block is taken from what the sets were logged under.
 Nothing here is destructive: edits reuse the entry's id and deletes write tombstones,
 so an edit made on the phone still merges cleanly with a laptop that never saw it.
 
+## Notes
+
+A note written at the end of a session is nearly always aimed at the next one —
+*go up 5 lb*, *slower eccentric*, *the left knee didn't like this*. Filed in history
+it's worth nothing, so the last note written about something stands against the next
+time that thing comes round.
+
+- **Three levels.** A note on a set, a note on an exercise, and — new — a note on the
+  whole session, from the button above **Finish session**. A ride's own notes field
+  counts as its session note.
+- **Where it comes back.** Today, under the session you're scheduled for, as *Notes
+  from last time* — session note first, then one per exercise. Inside the session,
+  the session note sits at the top and each exercise carries its own on its card. The
+  note sheet shows it too, under the box, since what you're writing is usually an
+  answer to it.
+- Carried notes are always dated and never prefilled into this week's note — it's
+  last week's thinking, and it says so. An exercise note carries by exercise, not by
+  session, so a lift you moved to another day brings its note with it.
+- Set-level notes stay put: *failed at 6, belt on* is about that set, not next week.
+
 ## Equipment
 
 The rack and the machines get set the same way every week, and re-finding the right

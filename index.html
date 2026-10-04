@@ -301,6 +301,18 @@ select.sel{
 .st.new,.st.hold{background:var(--surface-3);color:var(--text-2)}
 .seg.sm{margin-top:12px}
 .seg.sm button{padding:7px 4px;font-size:12px}
+.metcon .mk{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);margin-bottom:6px}
+.metcon .ml{font-size:14.5px;color:var(--text);line-height:1.5}
+.progbox{padding:0 16px 4px}
+.progbox .pk{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px}
+.popts{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.popt{text-align:left;padding:10px 11px;border-radius:11px;background:var(--surface);border:1px solid var(--line)}
+.popt.rec{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.popt.on{background:color-mix(in srgb,var(--accent) 14%,transparent);border-color:var(--accent)}
+.popt .pl{font-size:13px;font-weight:700}
+.popt.rec .pl,.popt.on .pl{color:var(--accent)}
+.popt .pt{font-size:14px;font-weight:650;margin-top:3px}
+.popt .pw2{font-size:11.5px;color:var(--text-3);margin-top:3px;line-height:1.35}
 .foot{font-size:12px;color:var(--text-3);line-height:1.45;margin-top:14px}
 
 /* ---------- tabs ---------- */
@@ -375,7 +387,7 @@ const ROUTINE = {
         {id:"hip-thrust", name:"Barbell Hip Thrust", group:"posterior", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12},
          note:"Glute strength at low spinal load — directly counters cycling posture."},
         {id:"bulgarian-split-squat", name:"DB Bulgarian Split Squat", perSide:true, group:"quads", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12}},
-        {id:"romanian-deadlift", name:"Romanian Deadlift", group:"posterior", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12},
+        {id:"romanian-deadlift", name:"Romanian Deadlift", group:"posterior", inc:5, A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12},
          note:"Light–moderate, hinge from the hips. Swap to cable pull-through if the back is flaring."},
         {id:"pallof-press", name:"Pallof Press", perSide:true, group:"core", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}},
         {id:"dead-bug", name:"Dead Bug", bodyweight:true, perSide:true, group:"core", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}}
@@ -459,7 +471,54 @@ const ROUTINE = {
       finisher:"8–10 min hip + core mobility flow"
     },
     "zwift-hiit": {name:"Zwift HIIT", kind:"cardio", tag:"Intervals · under 60 min",
-      detail:"10 min warm-up → 5 × 4 min hard (Z4–5) with 3 min easy → 10 min cool-down"},
+      detail:"10 min warm-up → 5 × 4 min hard (Z4–5) with 3 min easy → 10 min cool-down",
+      alts:["metcon-tabata", "metcon-emom", "metcon-9090", "metcon-amrap"]},
+
+    /* Metcons — swap-ins for the HIIT day, built to the Huberman/Galpin
+       guidance for the one hard session a week: 12–20 min of real work,
+       near-max effort (RPE 9) inside it, ~30 min door to door with the
+       warm-up. Low skill and back-friendly on purpose — no high-rep barbell
+       hinges, step down off the box. Work is "hard on the bike" rather than
+       calories, since the bike is a Zwift trainer. */
+    "metcon-tabata": {name:"Tabata Triple", kind:"cardio", metcon:true, alt:"zwift-hiit",
+      tag:"Metcon · 16 min work · ~30 min total",
+      warmup:"8 min easy spin → 2 rounds: 5 DB thrusters (light), 5 box step-ups/leg, 5 inchworms",
+      blocks:[
+        {h:"3 Tabatas — 8 × (20 s all-out, 10 s rest), 2 min easy between",
+         lines:["1 · Bike sprints — max watts every 20 s", "2 · DB thrusters — 2 × 25–30 lb", "3 · Wall-ball thrusters — squat, drive the ball overhead"]},
+        {h:"Score", lines:["Lowest rep count in any interval of 2 and 3, plus avg watts on 1"]}
+      ],
+      cooldown:"5 min easy spin, then the hip-flexor stretch"},
+    "metcon-emom": {name:"EMOM 16", kind:"cardio", metcon:true, alt:"zwift-hiit",
+      tag:"Metcon · 16 min work · ~30 min total",
+      warmup:"8 min easy spin → 2 rounds: 5 DB snatches/arm (light), 3 box jumps, 10 air squats",
+      blocks:[
+        {h:"Every minute on the minute, 4 rounds",
+         lines:["Min 1 · 40 s all-out on the bike", "Min 2 · 10 alternating DB snatches — 35–50 lb",
+                "Min 3 · 8 box jumps — step down", "Min 4 · Rest — easy spin or walk"]},
+        {h:"Pacing", lines:["Each station should take 35–45 s. If you can't finish one inside the minute, go lighter next round."]}
+      ],
+      cooldown:"5 min easy spin"},
+    "metcon-9090": {name:"90/90 Intervals", kind:"cardio", metcon:true, alt:"zwift-hiit",
+      tag:"Metcon · 18 min · ~32 min total",
+      warmup:"8 min spin building to Z3 → 1 slow practice round of the circuit",
+      blocks:[
+        {h:"6 rounds — 90 s hard, 90 s rest",
+         lines:["As many rounds as possible in 90 s of:", "· 5 DB thrusters — 2 × 30–35 lb", "· 5 landmine squat-to-press / side",
+                "· 5 box jumps — step down", "Rest 90 s. Hold the same count every round — that's the goal."]},
+        {h:"Score", lines:["Total rounds across all six — aim to repeat round 1 on round 6"]}
+      ],
+      cooldown:"5 min easy spin, then the hip-flexor stretch"},
+    "metcon-amrap": {name:"12-min Burner", kind:"cardio", metcon:true, alt:"zwift-hiit",
+      tag:"Metcon · 12 min AMRAP · ~25 min total",
+      warmup:"8 min easy spin → 1 easy round of the circuit",
+      blocks:[
+        {h:"As many rounds as possible in 12 min",
+         lines:["· 30 s hard on the bike", "· 10 wall-ball thrusters", "· 8 DB renegade rows — 2 × 30–35 lb, wide feet",
+                "· 6 burpee box step-overs"]},
+        {h:"Pacing", lines:["Sustained near-max (Z4–5), not a sprint. You should be glad it's 12 minutes and not 15."]}
+      ],
+      cooldown:"5 min easy spin"},
     "zwift-z2":   {name:"Zwift Z2", kind:"cardio", tag:"Zone 2 endurance · 45–60 min",
       detail:"Conversational effort, RPE 3–4/10"},
     "long-ride":  {name:"Long Ride", kind:"cardio", tag:"Outdoor Zone 2 · 2–3 hr",
@@ -953,6 +1012,92 @@ function buildExercise(ex, blk, date, logged){
   };
 }
 
+/* ==========================================================================
+   Suggested progression — double progression off the last session: add reps
+   inside the range until every working set reaches the top, then add weight
+   and drop back to the bottom. Working sets are the ones at that session's
+   top weight, so warm-up ramps (135×10 before 185×5) don't count. A stalled
+   lift (Stats' plateau rules) also gets a reset: ~10% off, rebuild.
+   ========================================================================== */
+const isDB = ex => !/cable|pushdown|face pull|pallof|fly|pulldown/.test(ex.name.toLowerCase())
+                && /db|dumbbell|curl|lunge|split|goblet|calf/.test(ex.name.toLowerCase());
+function loadStep(ex){
+  if (ex.inc) return ex.inc;
+  const n = ex.name.toLowerCase();
+  if (/cable|pushdown|face pull|pallof|fly|pulldown/.test(n)) return 10;       // stack plates
+  if (isDB(ex))                                               return 5;
+  if (/squat|deadlift|hip thrust/.test(n))                    return 10;       // barbell lower body
+  return 5;                                                                     // barbell upper, landmine
+}
+/* Adjustable dumbbells don't step in clean 5s (35.5 → 38.5 → 42.5 here), so
+   the next DB weight is the next one actually logged on any DB lift, if
+   there is one within a step. */
+function nextLoad(ex, top){
+  const step = loadStep(ex);
+  if (!isDB(ex) || ex.inc) return top + step;
+  const seen = sets().filter(e => e.weight >= top + 2 && e.weight <= top + step && isDB({name:e.exerciseName || ""})).map(e => e.weight);
+  return seen.length ? Math.min(...seen) : top + step;
+}
+const roundTo = (v, step) => Math.max(0, Math.round(v / step) * step);
+
+function progressionOptions(ex){
+  const last = ex.last, t = ex.target;
+  if (!last || !last.sets.length) return [];
+  const top = Math.max(...last.sets.map(s => s.weight || 0));
+  const work = last.sets.filter(s => (s.weight || 0) === top);
+  const reps = work.map(s => s.reps || 0), minR = Math.min(...reps);
+  const warm = last.sets.length - work.length;          // ramp sets below the top weight
+  const n = Math.max(work.length, t.sets - warm, 1);    // keep the session's total at the target
+  const step = loadStep(ex), weighted = top > 0, up = nextLoad(ex, top);
+  const rpeHigh = work.some(s => (s.rpe || 0) >= 9.5);
+  const list = (w, rs) => ({w, reps:rs});
+  const fmt = o => (weighted ? fmtW(o.w) + " × " : o.w > 0 ? `+${fmtW(o.w)} lb · ` : "")
+                 + (new Set(o.reps).size === 1 ? `${o.reps[0]} × ${o.reps.length}` : o.reps.join(", "));
+  const opts = [];
+
+  // Reps: +1 on every set under the top of the range — sets already there hold.
+  const repTarget = Array.from({length:n}, (_, i) => Math.min(t.hi, (reps[i] ?? reps[reps.length-1]) + 1));
+  if (minR < t.hi) opts.push({k:"reps", label:"Add reps", why:`Same weight, +1 rep a set toward ${t.hi}`, ...list(top, repTarget)});
+
+  if (weighted || !ex.bodyweight){
+    opts.push({k:"load", label:"Add weight", why: weighted ? `+${fmtW(up - top)} lb, back to ${t.lo} reps` : `Add ${step} lb, back to ${t.lo} reps`,
+               ...list(up, Array(n).fill(t.lo))});
+  } else {
+    opts.push({k:"set", label:"Add a set", why:"Bodyweight — more volume instead of load", ...list(0, [...repTarget, t.lo])});
+  }
+  opts.push({k:"hold", label:"Repeat", why:"Same as last time — own it before moving on", ...list(top, Array.from({length:n}, (_, i) => reps[i] ?? reps[reps.length-1]))});
+
+  const st = trendStatus(progression(ex.id), metricFor(progression(ex.id), "e1"));
+  if (weighted && (st.kind === "flat" || st.kind === "down"))
+    opts.push({k:"reset", label:"Reset −10%", why:`${st.label} — ${st.since} sessions without a best. Drop the load, rebuild with clean reps`,
+               ...list(roundTo(top * 0.9, step), Array(n).fill(t.hi))});
+
+  // One pick. A stall beats everything; then the rep range decides.
+  const rec = (weighted && (st.kind === "flat" || st.kind === "down") && minR < t.hi) ? "reset"
+    : rpeHigh || minR < t.lo ? "hold"
+    : minR >= t.hi ? (opts.some(o => o.k === "load") ? "load" : "set")
+    : "reps";
+  return opts.map(o => ({...o, rec:o.k === rec, txt:fmt(o)}));
+}
+
+/** Writes an option into the sets not yet ticked. Warm-up rows (below the
+    last session's top weight) keep what they had. */
+function applyProgression(i, k){
+  const ex = S.active.exercises[i], o = progressionOptions(ex).find(x => x.k === k);
+  if (!o) return;
+  const top = Math.max(...ex.last.sets.map(s => s.weight || 0));
+  const warm = ex.last.sets.filter(s => (s.weight || 0) < top).length;
+  const need = warm + o.reps.length;
+  while (ex.sets.length < need) ex.sets.push({reps:null, weight:null, rpe:null, notes:"", done:false, suggested:false, entryId:null});
+  o.reps.forEach((r, j) => {
+    const st = ex.sets[warm + j];
+    if (st.done) return;
+    st.reps = r; st.weight = ex.bodyweight && !o.w ? 0 : o.w; st.suggested = true;
+  });
+  ex.prog = k;
+  persistActive(); render();
+}
+
 /** Opens a session for any date, live or backfilled, empty or already logged.
     Everything saved for that day is rehydrated, so editing and logging fresh
     are the same screen — there is no separate edit mode to keep in step. */
@@ -997,6 +1142,7 @@ function startSession(id, date){
       avgPower:    cardioEntry ? cardioEntry.avgPower ?? null : null,
       avgHr:       cardioEntry ? cardioEntry.avgHr ?? null : null,
       rpe:         cardioEntry ? cardioEntry.rpe ?? null : null,
+      score:       cardioEntry ? cardioEntry.score || "" : "",
       notes:       cardioEntry ? cardioEntry.notes || "" : ""
     } : null,
     cardioId: cardioEntry ? cardioEntry.id : null,
@@ -1274,6 +1420,8 @@ function viewToday(){
           ${resume && S.active.sessionId === sid ? "Resume session" : done ? "Log again" : "Start session"}
         </button>`}
       ${done ? `<div class="meta" style="margin-top:10px;color:var(--accent)">✓ Already logged today</div>` : ""}
+      ${s.alts ? `<div class="meta" style="margin-top:16px;color:var(--text-2);font-weight:650">Or swap in a metcon</div>
+        <div class="picks" style="margin-top:8px">${s.alts.map(k => metconPick(k)).join("")}</div>` : ""}
     </div>
 
     <div class="card flush">
@@ -1290,15 +1438,23 @@ function viewToday(){
 
     <h2>Log something else</h2>
     <div class="picks">
-      ${Object.entries(ROUTINE.sessions).filter(([k,v]) => v.kind !== "rest" && k !== sid).map(([k,v]) => [k, plan(v, b.block)]).map(([k,v]) =>
+      ${Object.entries(ROUTINE.sessions).filter(([k,v]) => v.kind !== "rest" && k !== sid && !(s.alts || []).includes(k)).map(([k,v]) => [k, plan(v, b.block)]).map(([k,v]) =>
         `<button class="pick" onclick="startSession('${k}')">
-           <div class="bar" style="background:${v.kind==="cardio"?"var(--cyan)":"var(--lime)"}"></div>
+           <div class="bar" style="background:${v.metcon ? "var(--amber)" : v.kind==="cardio"?"var(--cyan)":"var(--lime)"}"></div>
            <div class="n">${esc(v.name)}</div><div class="d">${esc(v.tag||"")}</div>
          </button>`).join("")}
     </div>
 
     ${recent.length ? `<h2>Recent</h2>${recent.map(hItem).join("")}` : ""}
   </div>`;
+}
+
+function metconPick(k){
+  const v = ROUTINE.sessions[k];
+  return `<button class="pick" onclick="startSession('${k}')">
+    <div class="bar" style="background:var(--amber)"></div>
+    <div class="n">${esc(v.name)}</div><div class="d">${esc(v.tag.replace(/^Metcon · /, ""))}</div>
+  </button>`;
 }
 
 /* ---------- Session ---------- */
@@ -1350,6 +1506,7 @@ function exCard(ex, i, prs){
       </div>
       ${allDone ? `<span class="pill ok">DONE</span>` : ex.main ? `<span class="pill main">MAIN</span>` : ""}
     </button>
+    ${open && !allDone ? progBox(ex, i) : ""}
     ${open ? `<div class="sets">${ex.sets.map((s,j) => setRow(ex,i,s,j,prs)).join("")}
        <div class="row" style="gap:10px;padding-top:8px">
          <button class="setnote" onclick="addSet(${i})" style="flex:1;color:var(--text-3)">+ add a set</button>
@@ -1360,6 +1517,20 @@ function exCard(ex, i, prs){
        ${note ? `<div class="exnote" onclick="sheetNote('ex',${i})">${esc(note)}</div>` : ""}
      </div>` : ""}
     ${!open && note ? `<div class="exnote" style="margin:0 16px 14px">${esc(note)}</div>` : ""}
+  </div>`;
+}
+
+function progBox(ex, i){
+  const opts = progressionOptions(ex);
+  if (!opts.length) return "";
+  const rec = opts.find(o => o.rec);
+  return `<div class="progbox">
+    <div class="pk">Suggested progression${rec ? ` · <span style="color:var(--accent)">${esc(rec.label)}</span>` : ""}</div>
+    <div class="popts">${opts.map(o => `<button class="popt ${ex.prog === o.k ? "on" : ""} ${o.rec ? "rec" : ""}" onclick="applyProgression(${i},'${o.k}')">
+      <div class="pl">${esc(o.label)}${o.rec ? " ★" : ""}</div>
+      <div class="pt num">${esc(o.txt)}</div>
+      <div class="pw2">${esc(o.why)}</div>
+    </button>`).join("")}</div>
   </div>`;
 }
 
@@ -1489,10 +1660,10 @@ function addSet(i){
 /** Cardio fields differ from whatever is on file for this session. */
 function cardioDirty(a){
   const c = a.cardio, e = a.cardioId && S.entries.find(x => x.id === a.cardioId && !x.deleted);
-  if (!e) return c.durationMin != null || c.distanceKm != null || !!c.notes;
+  if (!e) return c.durationMin != null || c.distanceKm != null || !!c.notes || !!c.score;
   return c.durationMin !== (e.durationMin ?? null) || c.distanceKm !== distKm(e)
       || c.avgPower !== (e.avgPower ?? null) || c.avgHr !== (e.avgHr ?? null)
-      || c.rpe !== (e.rpe ?? null) || (c.notes || "") !== (e.notes || "");
+      || c.rpe !== (e.rpe ?? null) || (c.notes || "") !== (e.notes || "") || (c.score || "") !== (e.score || "");
 }
 
 function closeSession(){
@@ -1528,16 +1699,31 @@ function viewCardio(){
     </div>
     <div class="scroll" style="padding-top:16px">
       ${s && s.detail ? `<div class="card" style="color:var(--text-2);font-size:14px">${esc(s.detail)}</div>` : ""}
+      ${s && s.metcon ? metconCard(s) : ""}
       <div class="card">
         ${f("Duration","durationMin","min")}
+        ${s && s.metcon ? `<div class="frow">
+          <label>Score</label>
+          <input type="text" value="${esc(c.score || "")}" placeholder="rounds, reps…" style="flex:1;min-width:0;text-align:right;background:none;border:0;font-size:16px;font-weight:650;color:var(--text)"
+                 oninput="S.active.cardio.score=this.value;persistActive()">
+        </div>` : `
         ${f("Distance","distanceKm","km",.1)}
-        ${f("Avg power","avgPower","W")}
+        ${f("Avg power","avgPower","W")}`}
         ${f("Avg HR","avgHr","bpm")}
         ${f("RPE","rpe","/10",.5)}
         <textarea class="note" placeholder="Notes" oninput="S.active.cardio.notes=this.value;persistActive()">${esc(c.notes)}</textarea>
       </div>
       <button class="btn" onclick="finishSession()">Save session</button>
     </div>`;
+}
+
+function metconCard(s){
+  const sec = (h, body) => `<div style="margin-top:14px"><div class="mk">${esc(h)}</div>${body}</div>`;
+  return `<div class="card metcon">
+    ${sec("Warm-up", `<div class="ml">${esc(s.warmup)}</div>`).replace('style="margin-top:14px"', "")}
+    ${s.blocks.map(b => sec(b.h, b.lines.map(l => `<div class="ml">${esc(l)}</div>`).join(""))).join("")}
+    ${sec("Cool-down", `<div class="ml">${esc(s.cooldown)}</div>`)}
+  </div>`;
 }
 
 /* ==========================================================================
@@ -1640,7 +1826,7 @@ function hItem(s){
   let sm;
   if (isCardio){
     const e = s.entries[0];
-    sm = [e.durationMin && e.durationMin+" min", distKm(e) && distKm(e)+" km", e.avgPower && e.avgPower+" W"].filter(Boolean).join(" · ");
+    sm = [e.durationMin && e.durationMin+" min", e.score, distKm(e) && distKm(e)+" km", e.avgPower && e.avgPower+" W"].filter(Boolean).join(" · ");
   } else {
     const rows = s.entries.filter(e => e.type === "set");
     const ex = new Set(rows.map(e => e.exerciseId));
@@ -1685,8 +1871,8 @@ function viewDetail(){
   if (s.type === "cardio"){
     const e = s.entries[0];
     body = `<div class="det">
-      ${[["Duration",e.durationMin,"min"],["Distance",distKm(e),"km"],["Avg power",e.avgPower,"W"],["Avg HR",e.avgHr,"bpm"],["RPE",e.rpe,"/10"]]
-        .filter(r => r[1] != null).map(([l,v,u]) => `<div class="frow"><label>${l}</label><div class="num" style="font-weight:650">${v} <span class="dim2" style="font-size:12px">${u}</span></div></div>`).join("")}
+      ${[["Duration",e.durationMin,"min"],["Score",e.score || null,""],["Distance",distKm(e),"km"],["Avg power",e.avgPower,"W"],["Avg HR",e.avgHr,"bpm"],["RPE",e.rpe,"/10"]]
+        .filter(r => r[1] != null).map(([l,v,u]) => `<div class="frow"><label>${l}</label><div class="num" style="font-weight:650">${esc(v)} <span class="dim2" style="font-size:12px">${u}</span></div></div>`).join("")}
       ${e.notes ? `<div style="margin-top:12px;color:var(--text-2);font-size:14px">${esc(e.notes)}</div>` : ""}
     </div>`;
   } else {
@@ -2347,5 +2533,5 @@ Object.assign(window, {go, startSession, logSet, unlogSet, finishSession, closeS
   exportJSON, importJSON, adjustRest, skipRest, blockInfo, num, persistActive, S, DB,
   Sync, connectSync, disconnectSync, mergeEntries, sheetNote, saveNote, exNote, distKm,
   sheetPickDay, sheetDay, editSession, deleteSession, dayLabelLong, sessionsOn, mobilityOn, shiftDate,
-  setRange, setStatsExercise, setStatsMetric, openProgression, trendStatus, toggleGroup, e1rm, groupOf, bestSet, prIds, progression, weekStart});
+  progressionOptions, applyProgression, setRange, setStatsExercise, setStatsMetric, openProgression, trendStatus, toggleGroup, e1rm, groupOf, bestSet, prIds, progression, weekStart});
 </script>

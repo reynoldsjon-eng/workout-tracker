@@ -29,6 +29,27 @@ Served at `https://reynoldsjon-eng.github.io/workout-tracker/`.
 Each B exercise has its own id, so progression and PRs don't mix the two lists.
 Sessions keep the block they were logged under.
 
+## Suggested progression
+
+An open lift shows 2–4 options worked out from the last session at that lift:
+**Add reps**, **Add weight**, **Repeat**, and **Reset −10%** when Stats flags it
+as plateaued or slipping. One is starred as the recommendation. Tapping one fills
+in the sets you haven't ticked yet.
+
+It uses double progression:
+- Add reps until every working set reaches the top of the range, then add
+  weight and drop back to the bottom.
+- Repeat if the last session fell short of the range or was logged at RPE 9.5+.
+- Warm-up ramp sets below the top weight are left alone.
+- Dumbbell increases step to the next DB weight you've actually logged.
+
+## Metcons
+
+On the HIIT day, the Today card offers four metcons to swap in for the Zwift
+session. Each has 12–18 min of hard work and takes ~30 min with warm-up:
+**Tabata Triple**, **EMOM 16**, **90/90 Intervals** and the **12-min Burner**.
+They log like a ride, with a duration, a free-text score, HR and RPE.
+
 ## Earlier days
 
 Sessions don't have to be logged the day they happen.

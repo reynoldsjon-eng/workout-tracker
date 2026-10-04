@@ -14,6 +14,21 @@ Served at `https://reynoldsjon-eng.github.io/workout-tracker/`.
 | `manifest.json` | PWA metadata for Add to Home Screen |
 | `icon-*.png` | Home screen icons |
 
+## Blocks
+
+**Settings → Training block** switches between A and B.
+
+- **Block A** is strength: the original exercise list at 4×4–6 on mains.
+- **Block B** is hypertrophy, and swaps in its own lifting-day exercises:
+  - **Legs:** front squat and cable leg extensions.
+  - **Upper:** incline barbell bench and chin-ups.
+  - **Arms:** weighted single-leg calf raises.
+  
+  Reps run 8–15. Cardio days are unchanged.
+
+Each B exercise has its own id, so progression and PRs don't mix the two lists.
+Sessions keep the block they were logged under.
+
 ## Earlier days
 
 Sessions don't have to be logged the day they happen.

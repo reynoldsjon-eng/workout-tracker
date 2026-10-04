@@ -343,6 +343,9 @@ select.sel{
 /* ==========================================================================
    Routine — derived from workout-routine.md. Block A = strength,
    Block B = hypertrophy; each exercise carries targets for both.
+   A session's `B` swaps in its own exercise list (and tag) for Block B, so
+   the hypertrophy block rotates movements as well as rep ranges. Those
+   exercises only need B targets.
    `group` buckets an exercise for the weekly set-count breakdown in Stats.
    ========================================================================== */
 const ROUTINE = {
@@ -362,7 +365,24 @@ const ROUTINE = {
          note:"Light–moderate, hinge from the hips. Swap to cable pull-through if the back is flaring."},
         {id:"pallof-press", name:"Pallof Press", perSide:true, group:"core", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}},
         {id:"dead-bug", name:"Dead Bug", bodyweight:true, perSide:true, group:"core", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}}
-      ]
+      ],
+      B:{
+        tag:"Hypertrophy · quad-led, low spinal load",
+        exercises:[
+          {id:"front-squat", name:"Front Squat", main:true, group:"quads", B:{sets:4,lo:8,hi:10},
+           note:"From the rack. Upright torso spares the back. Start ~95 lb and add 5–10 once all sets hit 10."},
+          {id:"cable-leg-extension", name:"Cable Leg Extension", perSide:true, group:"quads", B:{sets:3,lo:12,hi:15},
+           note:"Ankle strap, low pulley, seated on the bench facing away. Pause 1 s at lockout. Start light."},
+          {id:"db-reverse-lunge", name:"DB Reverse Lunge", perSide:true, group:"quads", B:{sets:3,lo:10,hi:12},
+           note:"Start around your split-squat weight (30–35 lb)."},
+          {id:"single-leg-rdl", name:"Single-leg DB RDL", perSide:true, group:"posterior", B:{sets:3,lo:10,hi:12},
+           note:"Hinge, square hips. Start ~35–40 lb. Hand on the rig for balance is fine."},
+          {id:"cable-hamstring-curl", name:"Cable Hamstring Curl", perSide:true, group:"posterior", B:{sets:3,lo:12,hi:15},
+           note:"Ankle strap, low pulley — standing, or prone on the bench. Hamstrings with no load on the spine."},
+          {id:"wall-ball-twist", name:"Wall Ball Russian Twist", perSide:true, group:"core", B:{sets:3,lo:12,hi:12},
+           note:"Log the ball weight. Rotate from the ribcage, not the low back."}
+        ]
+      }
     },
     upper: {
       name:"Upper", kind:"strength", tag:"Push / pull",
@@ -375,7 +395,23 @@ const ROUTINE = {
         {id:"db-row", name:"DB or Cable Row", group:"pull", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:12,hi:12}},
         {id:"face-pull", name:"Face Pulls", group:"pull", A:{sets:3,lo:15,hi:15}, B:{sets:3,lo:15,hi:15},
          note:"Rear delts + posture — counters the cyclist's rounded upper back."}
-      ]
+      ],
+      B:{
+        tag:"Hypertrophy · incline push / pull",
+        exercises:[
+          {id:"incline-bench-press", name:"Incline Barbell Bench Press", main:true, group:"push", B:{sets:4,lo:8,hi:10},
+           note:"Bench at 30°. Start ~135 lb — about where a 205×5 flat bench lands at incline for 8–10."},
+          {id:"chin-up", name:"Chin-up", main:true, group:"pull", B:{sets:3,lo:8,hi:12},
+           note:"Underhand, shoulder width. Log added weight — 0 is bodyweight. Add load once all sets hit 12."},
+          {id:"chest-supported-db-row", name:"Chest-supported DB Row", group:"pull", B:{sets:3,lo:10,hi:12},
+           note:"Chest on the incline bench — no low-back load, after the back tweak on rows. Start ~50–55 lb."},
+          {id:"landmine-press", name:"Half-kneeling Landmine Press", perSide:true, group:"push", B:{sets:3,lo:10,hi:12},
+           note:"Shoulder-friendly overhead pressing. Log the plates on the bar."},
+          {id:"cable-lateral-raise", name:"Cable Lateral Raise", perSide:true, group:"push", B:{sets:3,lo:12,hi:15}},
+          {id:"cable-rear-delt-fly", name:"Cable Rear-Delt Fly", group:"pull", B:{sets:3,lo:15,hi:15},
+           note:"Both stacks, cables crossed at shoulder height. Stands in for face pulls."}
+        ]
+      }
     },
     arms: {
       name:"Arms/Calves/Neck", kind:"strength", tag:"Plus hip & core finisher",
@@ -390,6 +426,22 @@ const ROUTINE = {
         {id:"neck", name:"Neck Flexion/Extension", optional:true, group:"other", A:{sets:2,lo:15,hi:15}, B:{sets:2,lo:15,hi:15},
          note:"Optional — keep it light."}
       ],
+      B:{
+        exercises:[
+          {id:"single-leg-db-calf-raise", name:"Single-leg DB Calf Raise", perSide:true, group:"calves", B:{sets:4,lo:12,hi:15},
+           note:"Weighted at last — ball of the foot on the plyo box edge, DB in the same-side hand. Full stretch at the bottom."},
+          {id:"tibialis-raise", name:"Tibialis Raise", bodyweight:true, group:"calves", B:{sets:3,lo:15,hi:20},
+           note:"Back against the wall, heels out, toes up. Balances all the calf work and the pedalling."},
+          {id:"incline-db-curl", name:"Incline DB Curl", group:"arms", B:{sets:3,lo:10,hi:12},
+           note:"Bench at 45–60°, arms hanging. Expect ~25–30 lb, well under your standing curl."},
+          {id:"db-skull-crusher", name:"DB Skull Crusher", group:"arms", B:{sets:3,lo:10,hi:12}},
+          {id:"bayesian-cable-curl", name:"Bayesian Cable Curl", perSide:true, group:"arms", B:{sets:3,lo:12,hi:15},
+           note:"Low pulley, face away from the stack, arm behind you."},
+          {id:"cable-cross-body-ext", name:"Cable Cross-body Triceps Ext", perSide:true, group:"arms", B:{sets:3,lo:12,hi:15}},
+          {id:"neck", name:"Neck Flexion/Extension", optional:true, group:"other", B:{sets:2,lo:15,hi:15},
+           note:"Optional — keep it light."}
+        ]
+      },
       finisher:"8–10 min hip + core mobility flow"
     },
     "zwift-hiit": {name:"Zwift HIIT", kind:"cardio", tag:"Intervals · under 60 min",
@@ -402,6 +454,13 @@ const ROUTINE = {
       detail:"Sits right after leg day. Heat/cold, an easy walk, or the mobility flow — or just rest."}
   }
 };
+
+/** A session as it runs in a given block — Block B's own list and tag, if it has one. */
+const plan = (def, blk) => (def && def[blk] && def[blk].exercises) ? {...def, ...def[blk]} : (def || {});
+
+/** Every exercise the routine defines, across both blocks. */
+const routineExercises = () => Object.values(ROUTINE.sessions)
+  .flatMap(s => [...(s.exercises || []), ...((s.B && s.B.exercises) || [])]);
 
 const MOBILITY = [
   "Couch / hip-flexor stretch — 60 s/side",
@@ -656,7 +715,7 @@ function blockInfo(on){
   const wk = Math.floor((new Date((on || today())+"T00:00:00") - new Date(b.start+"T00:00:00")) / 6048e5) + 1;
   return {block:b.block, start:b.start, week:Math.max(1, wk)};
 }
-const target = (ex, blk) => ex[blk] || ex.A;
+const target = (ex, blk) => ex[blk] || ex.A || ex.B;
 const sets   = () => S.entries.filter(e => e.type === "set" && !e.deleted);
 
 /* Distance is km. Entries written before the switch used `distanceMi`; those
@@ -703,7 +762,7 @@ function sessionList(){
 
 const knownExercises = () => {
   const m = new Map();
-  Object.values(ROUTINE.sessions).forEach(s => (s.exercises||[]).forEach(e => m.set(e.id, e.name)));
+  routineExercises().forEach(e => m.set(e.id, e.name));
   sets().forEach(e => m.set(e.exerciseId, e.exerciseName));
   return m;
 };
@@ -742,7 +801,7 @@ const GROUP_HINTS = [
 ];
 const ROUTINE_GROUPS = (() => {
   const m = new Map();
-  Object.values(ROUTINE.sessions).forEach(s => (s.exercises||[]).forEach(e => e.group && m.set(e.id, e.group)));
+  routineExercises().forEach(e => e.group && m.set(e.id, e.group));
   return m;
 })();
 function groupOf(exerciseId, exerciseName){
@@ -854,10 +913,8 @@ function startSession(id, date){
     if (d === today()) reqWake();
     return go("session");
   }
-  const def = ROUTINE.sessions[id] || {};
   const rows = S.entries.filter(e => !e.deleted && e.date === d && e.sessionId === id);
   const cardioEntry = rows.find(e => e.type === "cardio");
-  const kind = def.kind || (cardioEntry ? "cardio" : "strength");
 
   const byEx = new Map();
   for (const e of rows.filter(x => x.type === "set")){
@@ -866,6 +923,8 @@ function startSession(id, date){
   }
   // What the block was when it was logged beats what the block is now.
   const blk = (rows.find(e => e.block) || {}).block || blockInfo(d).block;
+  const def = plan(ROUTINE.sessions[id], blk);
+  const kind = def.kind || (cardioEntry ? "cardio" : "strength");
 
   const exercises = (def.exercises || []).map(ex => buildExercise(ex, blk, d, byEx.get(ex.id)));
   const inRoutine = new Set((def.exercises || []).map(ex => ex.id));
@@ -1122,7 +1181,7 @@ const tabs = () => `<nav class="tabs">
 
 /* ---------- Today ---------- */
 function viewToday(){
-  const d = new Date(), sid = ROUTINE.week[d.getDay()], s = ROUTINE.sessions[sid], b = blockInfo();
+  const d = new Date(), sid = ROUTINE.week[d.getDay()], b = blockInfo(), s = plan(ROUTINE.sessions[sid], b.block);
   const done = sessionList().some(x => x.date === today() && x.sessionId === sid);
   const resume = S.active && S.active.date === today();
   const mob = S.entries.find(e => e.id === "mob-" + today() && !e.deleted);
@@ -1181,7 +1240,7 @@ function viewToday(){
 
     <h2>Log something else</h2>
     <div class="picks">
-      ${Object.entries(ROUTINE.sessions).filter(([k,v]) => v.kind !== "rest" && k !== sid).map(([k,v]) =>
+      ${Object.entries(ROUTINE.sessions).filter(([k,v]) => v.kind !== "rest" && k !== sid).map(([k,v]) => [k, plan(v, b.block)]).map(([k,v]) =>
         `<button class="pick" onclick="startSession('${k}')">
            <div class="bar" style="background:${v.kind==="cardio"?"var(--cyan)":"var(--lime)"}"></div>
            <div class="n">${esc(v.name)}</div><div class="d">${esc(v.tag||"")}</div>
@@ -1749,7 +1808,7 @@ function cardProgression(){
   if (!id || !logged.has(id)){
     // Default to whichever main lift was touched most recently.
     const mains = new Set();
-    Object.values(ROUTINE.sessions).forEach(s => (s.exercises||[]).forEach(x => x.main && mains.add(x.id)));
+    routineExercises().forEach(x => x.main && mains.add(x.id));
     const pick = [...logged.entries()].filter(([k]) => mains.has(k)).sort((a,b) => b[1].date < a[1].date ? -1 : 1)[0]
               || [...logged.entries()].sort((a,b) => b[1].date < a[1].date ? -1 : 1)[0];
     id = pick[0];
@@ -1941,7 +2000,7 @@ function viewSettings(){
         ${["A","B"].map(x => `<button class="opt ${b.block===x?"on":""}" onclick="setBlock('${x}')">Block ${x}</button>`).join("")}
       </div>
       <div class="sub" style="margin-top:12px">
-        ${b.block === "A" ? "Strength — mains 4×4–6, accessories 3×8–10." : "Hypertrophy — mains 3–4×8–12, accessories 3×12–15."}
+        ${b.block === "A" ? "Strength — mains 4×4–6, accessories 3×8–10." : "Hypertrophy — its own exercise list on lifting days, mains 3–4×8–12, accessories 3×10–15."}
         Rest ${rest.main}s on mains, ${rest.acc}s on accessories.
       </div>
       <div class="sub" style="margin-top:8px;color:var(--text-3)">

@@ -14,6 +14,21 @@ Served at `https://reynoldsjon-eng.github.io/workout-tracker/`.
 | `manifest.json` | PWA metadata for Add to Home Screen |
 | `icon-*.png` | Home screen icons |
 
+## Blocks
+
+**Settings → Training block** switches between A and B.
+
+- **Block A** is strength: the original exercise list at 4×4–6 on mains.
+- **Block B** is hypertrophy, and swaps in its own lifting-day exercises:
+  - **Legs:** front squat and cable leg extensions.
+  - **Upper:** incline barbell bench and chin-ups.
+  - **Arms:** weighted single-leg calf raises.
+  
+  Reps run 8–15. Cardio days are unchanged.
+
+Each B exercise has its own id, so progression and PRs don't mix the two lists.
+Sessions keep the block they were logged under.
+
 ## Earlier days
 
 Sessions don't have to be logged the day they happen.
@@ -47,6 +62,13 @@ A fourth tab, over a 6-week / 6-month / all-time window:
   4×12 in Block B sit on one axis. Bodyweight lifts chart total reps instead.
 - **PRs** — a set that beats your best e1RM for that lift is flagged as you log it,
   and stays badged in history.
+- **Plateau watch** — every lift trained in the window, with a sparkline and a
+  status, stalls first. **Plateau** means no new best for 3+ sessions over 3+
+  weeks. **Holding** means 2 sessions without one. **Slipping** means both of
+  the last two sessions came in 5%+ under the best. Tap a lift to chart it.
+  Matching a best doesn't count as beating it.
+- The **Progression** chart switches between e1RM, top weight and volume. A
+  dashed best-so-far line and a shaded stretch show how long it's been flat.
 - **Weekly sets** — sets per week, broken out by muscle group. Tap a group to
   filter the chart to it.
 - **Personal bests** — heaviest estimated 1RM per lift.

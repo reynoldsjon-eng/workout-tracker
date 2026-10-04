@@ -287,6 +287,20 @@ select.sel{
   font-size:9.5px;font-weight:800;letter-spacing:.06em;color:#0A0C08;background:var(--accent);
   border-radius:5px;padding:3px 5px;flex:none;align-self:center
 }
+/* Plateau watch — one row per lift: name + status, sparkline, last-best */
+.pw{display:grid;grid-template-columns:minmax(0,1fr) 84px;gap:4px 12px;align-items:center;width:100%;text-align:left;padding:11px 0}
+.pw+.pw{border-top:1px solid var(--line-soft)}
+.pw .n{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pw .d{font-size:12px;color:var(--text-3);grid-column:1}
+.pw .d .st{margin:0 7px 0 0}
+.pw svg{grid-row:1 / span 2;grid-column:2;width:84px;height:30px;overflow:visible}
+.st{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:5px;margin-left:6px;vertical-align:1px}
+.st.up{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+.st.flat{background:color-mix(in srgb,var(--amber) 18%,transparent);color:var(--amber)}
+.st.down{background:color-mix(in srgb,var(--red) 18%,transparent);color:var(--red)}
+.st.new,.st.hold{background:var(--surface-3);color:var(--text-2)}
+.seg.sm{margin-top:12px}
+.seg.sm button{padding:7px 4px;font-size:12px}
 .foot{font-size:12px;color:var(--text-3);line-height:1.45;margin-top:14px}
 
 /* ---------- tabs ---------- */
@@ -343,6 +357,9 @@ select.sel{
 /* ==========================================================================
    Routine — derived from workout-routine.md. Block A = strength,
    Block B = hypertrophy; each exercise carries targets for both.
+   A session's `B` swaps in its own exercise list (and tag) for Block B, so
+   the hypertrophy block rotates movements as well as rep ranges. Those
+   exercises only need B targets.
    `group` buckets an exercise for the weekly set-count breakdown in Stats.
    ========================================================================== */
 const ROUTINE = {
@@ -362,7 +379,24 @@ const ROUTINE = {
          note:"Light–moderate, hinge from the hips. Swap to cable pull-through if the back is flaring."},
         {id:"pallof-press", name:"Pallof Press", perSide:true, group:"core", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}},
         {id:"dead-bug", name:"Dead Bug", bodyweight:true, perSide:true, group:"core", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}}
-      ]
+      ],
+      B:{
+        tag:"Hypertrophy · quad-led, low spinal load",
+        exercises:[
+          {id:"front-squat", name:"Front Squat", main:true, group:"quads", B:{sets:4,lo:8,hi:10},
+           note:"From the rack. Upright torso spares the back. Start ~95 lb and add 5–10 once all sets hit 10."},
+          {id:"cable-leg-extension", name:"Cable Leg Extension", perSide:true, group:"quads", B:{sets:3,lo:12,hi:15},
+           note:"Ankle strap, low pulley, seated on the bench facing away. Pause 1 s at lockout. Start light."},
+          {id:"db-reverse-lunge", name:"DB Reverse Lunge", perSide:true, group:"quads", B:{sets:3,lo:10,hi:12},
+           note:"Start around your split-squat weight (30–35 lb)."},
+          {id:"single-leg-rdl", name:"Single-leg DB RDL", perSide:true, group:"posterior", B:{sets:3,lo:10,hi:12},
+           note:"Hinge, square hips. Start ~35–40 lb. Hand on the rig for balance is fine."},
+          {id:"cable-hamstring-curl", name:"Cable Hamstring Curl", perSide:true, group:"posterior", B:{sets:3,lo:12,hi:15},
+           note:"Ankle strap, low pulley — standing, or prone on the bench. Hamstrings with no load on the spine."},
+          {id:"wall-ball-twist", name:"Wall Ball Russian Twist", perSide:true, group:"core", B:{sets:3,lo:12,hi:12},
+           note:"Log the ball weight. Rotate from the ribcage, not the low back."}
+        ]
+      }
     },
     upper: {
       name:"Upper", kind:"strength", tag:"Push / pull",
@@ -375,7 +409,23 @@ const ROUTINE = {
         {id:"db-row", name:"DB or Cable Row", group:"pull", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:12,hi:12}},
         {id:"face-pull", name:"Face Pulls", group:"pull", A:{sets:3,lo:15,hi:15}, B:{sets:3,lo:15,hi:15},
          note:"Rear delts + posture — counters the cyclist's rounded upper back."}
-      ]
+      ],
+      B:{
+        tag:"Hypertrophy · incline push / pull",
+        exercises:[
+          {id:"incline-bench-press", name:"Incline Barbell Bench Press", main:true, group:"push", B:{sets:4,lo:8,hi:10},
+           note:"Bench at 30°. Start ~135 lb — about where a 205×5 flat bench lands at incline for 8–10."},
+          {id:"chin-up", name:"Chin-up", main:true, group:"pull", B:{sets:3,lo:8,hi:12},
+           note:"Underhand, shoulder width. Log added weight — 0 is bodyweight. Add load once all sets hit 12."},
+          {id:"chest-supported-db-row", name:"Chest-supported DB Row", group:"pull", B:{sets:3,lo:10,hi:12},
+           note:"Chest on the incline bench — no low-back load, after the back tweak on rows. Start ~50–55 lb."},
+          {id:"landmine-press", name:"Half-kneeling Landmine Press", perSide:true, group:"push", B:{sets:3,lo:10,hi:12},
+           note:"Shoulder-friendly overhead pressing. Log the plates on the bar."},
+          {id:"cable-lateral-raise", name:"Cable Lateral Raise", perSide:true, group:"push", B:{sets:3,lo:12,hi:15}},
+          {id:"cable-rear-delt-fly", name:"Cable Rear-Delt Fly", group:"pull", B:{sets:3,lo:15,hi:15},
+           note:"Both stacks, cables crossed at shoulder height. Stands in for face pulls."}
+        ]
+      }
     },
     arms: {
       name:"Arms/Calves/Neck", kind:"strength", tag:"Plus hip & core finisher",
@@ -390,6 +440,22 @@ const ROUTINE = {
         {id:"neck", name:"Neck Flexion/Extension", optional:true, group:"other", A:{sets:2,lo:15,hi:15}, B:{sets:2,lo:15,hi:15},
          note:"Optional — keep it light."}
       ],
+      B:{
+        exercises:[
+          {id:"single-leg-db-calf-raise", name:"Single-leg DB Calf Raise", perSide:true, group:"calves", B:{sets:4,lo:12,hi:15},
+           note:"Weighted at last — ball of the foot on the plyo box edge, DB in the same-side hand. Full stretch at the bottom."},
+          {id:"tibialis-raise", name:"Tibialis Raise", bodyweight:true, group:"calves", B:{sets:3,lo:15,hi:20},
+           note:"Back against the wall, heels out, toes up. Balances all the calf work and the pedalling."},
+          {id:"incline-db-curl", name:"Incline DB Curl", group:"arms", B:{sets:3,lo:10,hi:12},
+           note:"Bench at 45–60°, arms hanging. Expect ~25–30 lb, well under your standing curl."},
+          {id:"db-skull-crusher", name:"DB Skull Crusher", group:"arms", B:{sets:3,lo:10,hi:12}},
+          {id:"bayesian-cable-curl", name:"Bayesian Cable Curl", perSide:true, group:"arms", B:{sets:3,lo:12,hi:15},
+           note:"Low pulley, face away from the stack, arm behind you."},
+          {id:"cable-cross-body-ext", name:"Cable Cross-body Triceps Ext", perSide:true, group:"arms", B:{sets:3,lo:12,hi:15}},
+          {id:"neck", name:"Neck Flexion/Extension", optional:true, group:"other", B:{sets:2,lo:15,hi:15},
+           note:"Optional — keep it light."}
+        ]
+      },
       finisher:"8–10 min hip + core mobility flow"
     },
     "zwift-hiit": {name:"Zwift HIIT", kind:"cardio", tag:"Intervals · under 60 min",
@@ -402,6 +468,13 @@ const ROUTINE = {
       detail:"Sits right after leg day. Heat/cold, an easy walk, or the mobility flow — or just rest."}
   }
 };
+
+/** A session as it runs in a given block — Block B's own list and tag, if it has one. */
+const plan = (def, blk) => (def && def[blk] && def[blk].exercises) ? {...def, ...def[blk]} : (def || {});
+
+/** Every exercise the routine defines, across both blocks. */
+const routineExercises = () => Object.values(ROUTINE.sessions)
+  .flatMap(s => [...(s.exercises || []), ...((s.B && s.B.exercises) || [])]);
 
 const MOBILITY = [
   "Couch / hip-flexor stretch — 60 s/side",
@@ -475,7 +548,7 @@ const DB = (() => {
 
 const S = {
   entries:[], meta:{}, view:"today", active:null, rest:null, sheet:null, detail:null, toast:null,
-  stats:{range:"6w", exercise:null, group:null}
+  stats:{range:"6w", exercise:null, group:null, metric:"e1"}
 };
 
 const uid   = () => "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -656,7 +729,7 @@ function blockInfo(on){
   const wk = Math.floor((new Date((on || today())+"T00:00:00") - new Date(b.start+"T00:00:00")) / 6048e5) + 1;
   return {block:b.block, start:b.start, week:Math.max(1, wk)};
 }
-const target = (ex, blk) => ex[blk] || ex.A;
+const target = (ex, blk) => ex[blk] || ex.A || ex.B;
 const sets   = () => S.entries.filter(e => e.type === "set" && !e.deleted);
 
 /* Distance is km. Entries written before the switch used `distanceMi`; those
@@ -703,7 +776,7 @@ function sessionList(){
 
 const knownExercises = () => {
   const m = new Map();
-  Object.values(ROUTINE.sessions).forEach(s => (s.exercises||[]).forEach(e => m.set(e.id, e.name)));
+  routineExercises().forEach(e => m.set(e.id, e.name));
   sets().forEach(e => m.set(e.exerciseId, e.exerciseName));
   return m;
 };
@@ -742,7 +815,7 @@ const GROUP_HINTS = [
 ];
 const ROUTINE_GROUPS = (() => {
   const m = new Map();
-  Object.values(ROUTINE.sessions).forEach(s => (s.exercises||[]).forEach(e => e.group && m.set(e.id, e.group)));
+  routineExercises().forEach(e => e.group && m.set(e.id, e.group));
   return m;
 })();
 function groupOf(exerciseId, exerciseName){
@@ -806,7 +879,8 @@ function progression(exerciseId){
   const rows = sets().filter(e => e.exerciseId === exerciseId);
   const byDate = new Map();
   for (const e of rows){
-    const cur = byDate.get(e.date) || {date:e.date, e1:0, weight:0, reps:0, volume:0, sets:0, top:null};
+    const cur = byDate.get(e.date) || {date:e.date, e1:0, weight:0, reps:0, volume:0, sets:0, top:null, maxW:0};
+    if ((e.weight || 0) > cur.maxW) cur.maxW = e.weight;
     const v = e1rm(e.weight, e.reps);
     if (v > cur.e1){ cur.e1 = v; cur.weight = e.weight; cur.reps = e.reps; cur.top = e; }
     cur.volume += (e.reps || 0) * (e.weight || 0);
@@ -815,6 +889,41 @@ function progression(exerciseId){
     byDate.set(e.date, cur);
   }
   return [...byDate.values()].sort((a,b) => a.date < b.date ? -1 : 1);
+}
+
+/* What the progression chart can plot. e1RM is the default; top weight and
+   volume catch the hypertrophy-style stall where load holds and reps creep,
+   or reps hold and sets get added. Bodyweight lifts only have reps. */
+const METRICS = {
+  e1:  {label:"e1RM",       unit:" lb",   y:p => p.e1},
+  top: {label:"Top weight", unit:" lb",   y:p => p.maxW},
+  vol: {label:"Volume",     unit:" lb",   y:p => p.volume},
+  reps:{label:"Total reps", unit:" reps", y:p => p.reps_total || 0}
+};
+const metricFor = (series, want) => series.some(p => p.e1 > 0) ? (want && want !== "reps" ? want : "e1") : "reps";
+
+/* A plateau is no new best for 3+ sessions spanning 3+ weeks — one flat
+   session is noise, three across most of a month is a stall. Short of that
+   it's holding. Slipping is even the better of the last two sessions coming
+   in more than 5% under the best, so one off day doesn't trip it. A "new
+   best" must beat the old one outright; matching 205×5 again doesn't count.
+   On a weighted lift, a bodyweight-only day has no e1RM and is left out
+   rather than read as a crash. */
+const PLATEAU = {sessions:3, days:21, slip:0.95, min:3};
+const trendSeries = (series, metric) => metric === "reps" ? series : series.filter(p => METRICS[metric].y(p) > 0);
+function trendStatus(all, metric){
+  const series = trendSeries(all, metric), f = METRICS[metric].y, ys = series.map(f);
+  if (ys.length < PLATEAU.min) return {kind:"new", label:"New", since:0, bestIdx:ys.length - 1};
+  let bestIdx = 0;
+  ys.forEach((y, i) => { if (y > ys[bestIdx] + 1e-9) bestIdx = i; });
+  const n = ys.length, since = n - 1 - bestIdx;
+  const days = Math.round((new Date(series[n-1].date) - new Date(series[bestIdx].date)) / 864e5);
+  const recent = Math.max(ys[n-1], ys[n-2]);
+  const base = {since, days, bestIdx, best:ys[bestIdx], bestDate:series[bestIdx].date};
+  if (since >= 2 && recent < ys[bestIdx] * PLATEAU.slip) return {...base, kind:"down", label:"Slipping"};
+  if (since >= PLATEAU.sessions && days >= PLATEAU.days) return {...base, kind:"flat", label:"Plateau"};
+  if (since >= 2) return {...base, kind:"hold", label:"Holding"};
+  return {...base, kind:"up", label:"Progressing"};
 }
 
 /* ==========================================================================
@@ -854,10 +963,8 @@ function startSession(id, date){
     if (d === today()) reqWake();
     return go("session");
   }
-  const def = ROUTINE.sessions[id] || {};
   const rows = S.entries.filter(e => !e.deleted && e.date === d && e.sessionId === id);
   const cardioEntry = rows.find(e => e.type === "cardio");
-  const kind = def.kind || (cardioEntry ? "cardio" : "strength");
 
   const byEx = new Map();
   for (const e of rows.filter(x => x.type === "set")){
@@ -866,6 +973,8 @@ function startSession(id, date){
   }
   // What the block was when it was logged beats what the block is now.
   const blk = (rows.find(e => e.block) || {}).block || blockInfo(d).block;
+  const def = plan(ROUTINE.sessions[id], blk);
+  const kind = def.kind || (cardioEntry ? "cardio" : "strength");
 
   const exercises = (def.exercises || []).map(ex => buildExercise(ex, blk, d, byEx.get(ex.id)));
   const inRoutine = new Set((def.exercises || []).map(ex => ex.id));
@@ -1122,7 +1231,7 @@ const tabs = () => `<nav class="tabs">
 
 /* ---------- Today ---------- */
 function viewToday(){
-  const d = new Date(), sid = ROUTINE.week[d.getDay()], s = ROUTINE.sessions[sid], b = blockInfo();
+  const d = new Date(), sid = ROUTINE.week[d.getDay()], b = blockInfo(), s = plan(ROUTINE.sessions[sid], b.block);
   const done = sessionList().some(x => x.date === today() && x.sessionId === sid);
   const resume = S.active && S.active.date === today();
   const mob = S.entries.find(e => e.id === "mob-" + today() && !e.deleted);
@@ -1181,7 +1290,7 @@ function viewToday(){
 
     <h2>Log something else</h2>
     <div class="picks">
-      ${Object.entries(ROUTINE.sessions).filter(([k,v]) => v.kind !== "rest" && k !== sid).map(([k,v]) =>
+      ${Object.entries(ROUTINE.sessions).filter(([k,v]) => v.kind !== "rest" && k !== sid).map(([k,v]) => [k, plan(v, b.block)]).map(([k,v]) =>
         `<button class="pick" onclick="startSession('${k}')">
            <div class="bar" style="background:${v.kind==="cardio"?"var(--cyan)":"var(--lime)"}"></div>
            <div class="n">${esc(v.name)}</div><div class="d">${esc(v.tag||"")}</div>
@@ -1623,6 +1732,12 @@ function viewDetail(){
    ========================================================================== */
 function setRange(r){ S.stats.range = r; render(); }
 function setStatsExercise(id){ S.stats.exercise = id; render(); }
+function setStatsMetric(m){ S.stats.metric = m; render(); }
+function openProgression(id){
+  S.stats.exercise = id; render();
+  document.getElementById("progression")?.scrollIntoView({behavior:"smooth", block:"start"});
+}
+const fmtNum = v => Math.round(v).toLocaleString();
 function toggleGroup(g){ S.stats.group = S.stats.group === g ? null : g; render(); }
 
 function viewStats(){
@@ -1677,6 +1792,7 @@ function viewStats(){
 
       ${cardHeatmap(weeks[0] || from)}
       ${cardProgression()}
+      ${cardPlateaus(from)}
       ${cardVolume(weeks, from)}
       ${cardBests()}
     ` : `<div class="empty">Nothing logged in this window.<br>Finish a session and the numbers show up here.</div>`}
@@ -1749,7 +1865,7 @@ function cardProgression(){
   if (!id || !logged.has(id)){
     // Default to whichever main lift was touched most recently.
     const mains = new Set();
-    Object.values(ROUTINE.sessions).forEach(s => (s.exercises||[]).forEach(x => x.main && mains.add(x.id)));
+    routineExercises().forEach(x => x.main && mains.add(x.id));
     const pick = [...logged.entries()].filter(([k]) => mains.has(k)).sort((a,b) => b[1].date < a[1].date ? -1 : 1)[0]
               || [...logged.entries()].sort((a,b) => b[1].date < a[1].date ? -1 : 1)[0];
     id = pick[0];
@@ -1757,11 +1873,9 @@ function cardProgression(){
 
   const series = progression(id);
   const weighted = series.some(p => p.e1 > 0);
-  const pts = series.map(p => ({
-    x: new Date(p.date+"T00:00:00").getTime(),
-    y: weighted ? p.e1 : (p.reps_total || 0),
-    p
-  }));
+  const metric = metricFor(series, S.stats.metric), M = METRICS[metric];
+  const pts = trendSeries(series, metric).map(p => ({x: new Date(p.date+"T00:00:00").getTime(), y: M.y(p), p}));
+  const status = trendStatus(series, metric);
 
   const last = series[series.length - 1], best = bestSet(id);
   let trend = "";
@@ -1773,20 +1887,33 @@ function cardProgression(){
     const delta = base[base.length-1].y - base[0].y;
     if (days > 0){
       const perWeek = delta / days * 7;
-      const unit = weighted ? " lb/wk" : " reps/wk";
+      const unit = M.unit.trim() + "/wk";
       trend = `<span style="color:${perWeek > 0.05 ? "var(--accent)" : perWeek < -0.05 ? "var(--amber)" : "var(--text-2)"}">
-        ${perWeek > 0 ? "+" : ""}${perWeek.toFixed(1)}${unit}</span> <span class="dim2">over the last ${Math.round(days)} days</span>`;
+        ${perWeek > 0 ? "+" : ""}${perWeek.toFixed(1)} ${unit}</span> <span class="dim2">over the last ${Math.round(days)} days</span>`;
     }
   }
 
-  return `<div class="card">
-    <div style="font-weight:650;margin-bottom:12px">Progression</div>
+  const verdict = status.kind === "new" ? ""
+    : status.since === 0 ? `<span style="color:var(--accent)">New best last session.</span>`
+    : `<span style="color:${(status.kind === "up" || status.kind === "hold") ? "var(--text-2)" : status.kind === "flat" ? "var(--amber)" : "var(--red)"}">
+        No new best in ${status.since} session${status.since > 1 ? "s" : ""}</span>
+       <span class="dim2">· best ${fmtNum(status.best)}${M.unit} on ${fmtDay(status.bestDate)}, ${status.days} days ago</span>`;
+
+  return `<div class="card" id="progression">
+    <div class="between" style="margin-bottom:12px">
+      <div style="font-weight:650">Progression</div>
+      <span class="st ${status.kind}">${status.label}</span>
+    </div>
     <select class="sel" onchange="setStatsExercise(this.value)">
       ${opts.map(([k,v]) => `<option value="${esc(k)}" ${k===id?"selected":""}>${esc(v.name)}</option>`).join("")}
     </select>
+    ${weighted ? `<div class="seg sm">
+      ${["e1","top","vol"].map(k => `<button class="${metric===k?"on":""}" onclick="setStatsMetric('${k}')">${METRICS[k].label}</button>`).join("")}
+    </div>` : ""}
     <div class="chartwrap" style="margin-top:14px">
-      ${lineChart(pts, weighted)}
+      ${lineChart(pts, weighted, {metric, status})}
     </div>
+    ${verdict ? `<div class="foot" style="font-size:13px;margin-top:12px">${verdict}</div>` : ""}
     <div class="between" style="margin-top:14px;border-top:1px solid var(--line-soft);padding-top:13px;flex-wrap:wrap;gap:14px">
       <div>
         <div class="k" style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)">Best</div>
@@ -1802,13 +1929,66 @@ function cardProgression(){
       </div>
     </div>
     ${trend ? `<div class="foot" style="font-size:13px">${trend}</div>` : ""}
-    ${weighted ? `<div class="foot">Charting estimated 1RM (Epley) so heavy-low and light-high sessions compare on one axis.</div>`
-               : `<div class="foot">Bodyweight lift — charting total reps per session.</div>`}
+    <div class="foot">${!weighted ? "Bodyweight lift — charting total reps per session."
+      : metric === "e1"  ? "Estimated 1RM (Epley) puts heavy-low and light-high sessions on one axis."
+      : metric === "top" ? "Heaviest weight lifted each session, any reps."
+      : "Weight × reps summed over the session."}
+      Dashed line is best-so-far; the shaded stretch is time since the last new best.</div>
   </div>`;
 }
 
+/* ---------- plateau watch ---------- */
+function cardPlateaus(from){
+  const ids = new Map();
+  for (const e of sets()) if (e.date >= from) ids.set(e.exerciseId, e.exerciseName);
+  const order = {flat:0, down:1, hold:2, up:3, new:4};
+  const rows = [...ids.entries()].map(([id, name]) => {
+    const series = progression(id), metric = metricFor(series, "e1");
+    return {id, name, series, metric, st:trendStatus(series, metric)};
+  }).sort((a,b) => order[a.st.kind] - order[b.st.kind] || b.st.since - a.st.since || a.name.localeCompare(b.name));
+  if (!rows.length) return "";
+  const n = k => rows.filter(r => r.st.kind === k).length;
+
+  return `<div class="card">
+    <div style="font-weight:650;margin-bottom:6px">Plateau watch</div>
+    <div class="sub" style="margin-bottom:6px">${n("flat") + n("down")
+      ? `${n("flat")} plateaued, ${n("down")} slipping, ${n("hold")} holding, ${n("up")} progressing.`
+      : `Everything trained here is still moving.`}
+      Tap a lift to chart it.</div>
+    ${rows.map(r => {
+      const last = r.series[r.series.length - 1];
+      const d = r.st.kind === "new" ? `${r.series.length} session${r.series.length > 1 ? "s" : ""} so far`
+        : r.st.since === 0 ? `New best ${fmtDay(last.date)}`
+        : r.st.since === 1 ? `Best ${fmtDay(r.st.bestDate)}`
+        : `No new best in ${r.st.since} · ${r.st.days}d`;
+      return `<button class="pw" onclick="openProgression('${esc(r.id)}')">
+        <div class="n">${esc(r.name)}</div>
+        ${sparkline(trendSeries(r.series, r.metric).map(METRICS[r.metric].y), r.st)}
+        <div class="d"><span class="st ${r.st.kind}">${r.st.label}</span>${d}</div>
+      </button>`;
+    }).join("")}
+    <div class="foot">Plateau: no new best (e1RM, or total reps on bodyweight lifts) for ${PLATEAU.sessions}+ sessions over ${PLATEAU.days}+ days.
+      Holding: 2 sessions without one. Slipping: both of the last two sessions ${Math.round((1-PLATEAU.slip)*100)}%+ under the best.</div>
+  </div>`;
+}
+
+function sparkline(ys, st){
+  const W = 84, H = 30;
+  if (ys.length < 2) return `<svg viewBox="0 0 ${W} ${H}"></svg>`;
+  const y0 = Math.min(...ys), y1 = Math.max(...ys), span = (y1 - y0) || 1;
+  const X = i => (i / (ys.length - 1)) * W, Y = v => H - 3 - ((v - y0) / span) * (H - 6);
+  const col = {up:"var(--accent)", flat:"var(--amber)", down:"var(--red)", hold:"var(--text-2)", new:"var(--text-3)"}[st.kind];
+  const d = ys.map((v,i) => `${i ? "L" : "M"}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">
+    ${st.kind !== "new" && st.since > 0 ? `<line x1="${X(st.bestIdx).toFixed(1)}" x2="${W}" y1="${Y(st.best).toFixed(1)}" y2="${Y(st.best).toFixed(1)}"
+       stroke="var(--text-3)" stroke-dasharray="2 2" stroke-width="1" vector-effect="non-scaling-stroke"/>` : ""}
+    <path d="${d}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    <circle cx="${X(ys.length-1).toFixed(1)}" cy="${Y(ys[ys.length-1]).toFixed(1)}" r="2.2" fill="${col}"/>
+  </svg>`;
+}
+
 /* Uniformly-scaled SVG: viewBox does the layout, CSS does the width. */
-function lineChart(pts, weighted){
+function lineChart(pts, weighted, opt = {}){
   if (pts.length < 2)
     return `<div class="empty" style="padding:30px 12px">Log this one twice and the trend shows up here.</div>`;
 
@@ -1823,12 +2003,21 @@ function lineChart(pts, weighted){
 
   const d = pts.map((p,i) => `${i ? "L" : "M"}${X(p.x).toFixed(1)} ${Y(p.y).toFixed(1)}`).join(" ");
   const area = `${d} L${X(x1).toFixed(1)} ${H - PB} L${X(x0).toFixed(1)} ${H - PB} Z`;
+  // Best-so-far as a step line, and the stretch since the last new best shaded.
+  let run = -Infinity;
+  const best = pts.map((p,i) => { run = Math.max(run, p.y);
+    return `${i ? "H" + X(p.x).toFixed(1) + " V" : "M" + X(p.x).toFixed(1) + " "}${Y(run).toFixed(1)}`; }).join(" ");
+  const st = opt.status, M = METRICS[opt.metric || (weighted ? "e1" : "reps")];
+  const band = st && st.kind !== "new" && st.since > 0
+    ? `<rect x="${X(pts[st.bestIdx].x).toFixed(1)}" y="${PT - 6}" width="${(X(x1) - X(pts[st.bestIdx].x)).toFixed(1)}" height="${H - PB - PT + 6}"
+         fill="${st.kind === "down" ? "var(--red)" : st.kind === "flat" ? "var(--amber)" : "var(--text-3)"}" opacity=".09" rx="3"/>` : "";
   const dots = pts.map((p,i) => {
     const lastOne = i === pts.length - 1;
     return `<circle cx="${X(p.x).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="${lastOne ? 3.4 : 2}"
       fill="${lastOne ? "var(--accent)" : "var(--bg)"}" stroke="var(--accent)" stroke-width="1.4"
       vector-effect="non-scaling-stroke"><title>${fmtDay(p.p.date)} — ${weighted
-        ? `${fmtW(p.p.weight)}×${p.p.reps} (e1RM ${Math.round(p.p.e1)})` : `${p.p.reps_total} reps`}</title></circle>`;
+        ? `${fmtW(p.p.weight)}×${p.p.reps} (e1RM ${Math.round(p.p.e1)}, top ${fmtW(p.p.maxW)}, volume ${Math.round(p.p.volume).toLocaleString()})`
+        : `${p.p.reps_total} reps`}</title></circle>`;
   }).join("");
 
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;overflow:visible">
@@ -1836,14 +2025,16 @@ function lineChart(pts, weighted){
         <stop offset="0%" stop-color="var(--accent)" stop-opacity=".22"/>
         <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
       </linearGradient></defs>
+      ${band}
       <path d="${area}" fill="url(#lg)"/>
+      <path d="${best}" fill="none" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>
       <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"
             stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
       ${dots}
     </svg>
     <div class="between" style="margin-top:7px;font-size:11px;color:var(--text-3)">
       <span>${fmtDay(pts[0].p.date)}</span>
-      <span class="num">${Math.round(y0)} – ${Math.round(y1)}${weighted ? " lb" : " reps"}</span>
+      <span class="num">${fmtNum(y0)} – ${fmtNum(y1)}${M.unit}</span>
       <span>${fmtDay(pts[pts.length-1].p.date)}</span>
     </div>`;
 }
@@ -1920,7 +2111,7 @@ function cardBests(){
   return `<div class="card">
     <div style="font-weight:650;margin-bottom:6px">Personal bests</div>
     <div class="sub" style="margin-bottom:8px">Heaviest estimated 1RM per lift, all time.</div>
-    ${best.map(({id, b}) => `<button class="pb" style="width:100%;text-align:left" onclick="setStatsExercise('${esc(id)}');window.scrollTo(0,0)">
+    ${best.map(({id, b}) => `<button class="pb" style="width:100%;text-align:left" onclick="openProgression('${esc(id)}')">
       <span class="n">${esc(b.e.exerciseName)}</span>
       <span class="num" style="font-weight:650">${fmtW(b.e.weight)} × ${b.e.reps}</span>
       <span class="dim2 num" style="font-size:12.5px;width:64px;text-align:right">${Math.round(b.v)} lb</span>
@@ -1941,7 +2132,7 @@ function viewSettings(){
         ${["A","B"].map(x => `<button class="opt ${b.block===x?"on":""}" onclick="setBlock('${x}')">Block ${x}</button>`).join("")}
       </div>
       <div class="sub" style="margin-top:12px">
-        ${b.block === "A" ? "Strength — mains 4×4–6, accessories 3×8–10." : "Hypertrophy — mains 3–4×8–12, accessories 3×12–15."}
+        ${b.block === "A" ? "Strength — mains 4×4–6, accessories 3×8–10." : "Hypertrophy — its own exercise list on lifting days, mains 3–4×8–12, accessories 3×10–15."}
         Rest ${rest.main}s on mains, ${rest.acc}s on accessories.
       </div>
       <div class="sub" style="margin-top:8px;color:var(--text-3)">
@@ -2156,5 +2347,5 @@ Object.assign(window, {go, startSession, logSet, unlogSet, finishSession, closeS
   exportJSON, importJSON, adjustRest, skipRest, blockInfo, num, persistActive, S, DB,
   Sync, connectSync, disconnectSync, mergeEntries, sheetNote, saveNote, exNote, distKm,
   sheetPickDay, sheetDay, editSession, deleteSession, dayLabelLong, sessionsOn, mobilityOn, shiftDate,
-  setRange, setStatsExercise, toggleGroup, e1rm, groupOf, bestSet, prIds, progression, weekStart});
+  setRange, setStatsExercise, setStatsMetric, openProgression, trendStatus, toggleGroup, e1rm, groupOf, bestSet, prIds, progression, weekStart});
 </script>

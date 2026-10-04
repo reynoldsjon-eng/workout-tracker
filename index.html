@@ -480,47 +480,49 @@ const ROUTINE = {
        guidance for the one hard session a week: 12–20 min of real work,
        near-max effort (RPE 9) inside it, ~30 min door to door with the
        warm-up. Low skill and back-friendly on purpose — no high-rep barbell
-       hinges, step down off the box. Work is "hard on the bike" rather than
-       calories, since the bike is a Zwift trainer. */
+       hinges, step down off the box. The bike is warm-up only: clipless
+       pedals mean a shoe change, so it never appears inside the work, and
+       cool-downs are on foot. */
     "metcon-tabata": {name:"Tabata Triple", kind:"cardio", metcon:true, alt:"zwift-hiit",
       tag:"Metcon · 16 min work · ~30 min total",
-      warmup:"8 min easy spin → 2 rounds: 5 DB thrusters (light), 5 box step-ups/leg, 5 inchworms",
+      warmup:"8 min easy spin, swap shoes → 2 rounds: 5 burpees, 5 wall-ball thrusters, 5 box step-ups/leg, 5 inchworms",
       blocks:[
-        {h:"3 Tabatas — 8 × (20 s all-out, 10 s rest), 2 min easy between",
-         lines:["1 · Bike sprints — max watts every 20 s", "2 · DB thrusters — 2 × 25–30 lb", "3 · Wall-ball thrusters — squat, drive the ball overhead"]},
-        {h:"Score", lines:["Lowest rep count in any interval of 2 and 3, plus avg watts on 1"]}
+        {h:"3 Tabatas — 8 × (20 s all-out, 10 s rest), 2 min walk between",
+         lines:["1 · Burpees — step back instead of jumping if the back complains", "2 · Wall-ball thrusters — squat, drive the ball overhead",
+                "3 · Box step-ups — fast, alternating legs"]},
+        {h:"Score", lines:["Lowest rep count in any single interval, for each of the three"]}
       ],
-      cooldown:"5 min easy spin, then the hip-flexor stretch"},
+      cooldown:"5 min walk, then the hip-flexor stretch"},
     "metcon-emom": {name:"EMOM 16", kind:"cardio", metcon:true, alt:"zwift-hiit",
       tag:"Metcon · 16 min work · ~30 min total",
-      warmup:"8 min easy spin → 2 rounds: 5 DB snatches/arm (light), 3 box jumps, 10 air squats",
+      warmup:"8 min easy spin, swap shoes → 2 rounds: 5 DB snatches/arm (light), 3 box jumps, 5 burpees, 10 air squats",
       blocks:[
         {h:"Every minute on the minute, 4 rounds",
-         lines:["Min 1 · 40 s all-out on the bike", "Min 2 · 10 alternating DB snatches — 35–50 lb",
-                "Min 3 · 8 box jumps — step down", "Min 4 · Rest — easy spin or walk"]},
+         lines:["Min 1 · 10 burpees", "Min 2 · 10 alternating DB snatches — 35.5–48.5 lb",
+                "Min 3 · 8 box jumps — step down", "Min 4 · Rest — walk it off"]},
         {h:"Pacing", lines:["Each station should take 35–45 s. If you can't finish one inside the minute, go lighter next round."]}
       ],
-      cooldown:"5 min easy spin"},
+      cooldown:"5 min walk, then the hip-flexor stretch"},
     "metcon-9090": {name:"90/90 Intervals", kind:"cardio", metcon:true, alt:"zwift-hiit",
       tag:"Metcon · 18 min · ~32 min total",
-      warmup:"8 min spin building to Z3 → 1 slow practice round of the circuit",
+      warmup:"8 min spin building to Z3, swap shoes → 1 slow practice round of the circuit",
       blocks:[
         {h:"6 rounds — 90 s hard, 90 s rest",
-         lines:["As many rounds as possible in 90 s of:", "· 5 DB thrusters — 2 × 30–35 lb", "· 5 landmine squat-to-press / side",
+         lines:["As many rounds as possible in 90 s of:", "· 5 DB thrusters — 2 × 28.5–35.5 lb", "· 5 landmine squat-to-press / side",
                 "· 5 box jumps — step down", "Rest 90 s. Hold the same count every round — that's the goal."]},
         {h:"Score", lines:["Total rounds across all six — aim to repeat round 1 on round 6"]}
       ],
-      cooldown:"5 min easy spin, then the hip-flexor stretch"},
+      cooldown:"5 min walk, then the hip-flexor stretch"},
     "metcon-amrap": {name:"12-min Burner", kind:"cardio", metcon:true, alt:"zwift-hiit",
       tag:"Metcon · 12 min AMRAP · ~25 min total",
-      warmup:"8 min easy spin → 1 easy round of the circuit",
+      warmup:"8 min easy spin, swap shoes → 1 easy round of the circuit",
       blocks:[
         {h:"As many rounds as possible in 12 min",
-         lines:["· 30 s hard on the bike", "· 10 wall-ball thrusters", "· 8 DB renegade rows — 2 × 30–35 lb, wide feet",
-                "· 6 burpee box step-overs"]},
+         lines:["· 10 wall-ball thrusters", "· 8 DB renegade rows — 2 × 28.5–35.5 lb, wide feet",
+                "· 20 mountain climbers — alternating", "· 6 burpee box step-overs"]},
         {h:"Pacing", lines:["Sustained near-max (Z4–5), not a sprint. You should be glad it's 12 minutes and not 15."]}
       ],
-      cooldown:"5 min easy spin"},
+      cooldown:"5 min walk, then the hip-flexor stretch"},
     "zwift-z2":   {name:"Zwift Z2", kind:"cardio", tag:"Zone 2 endurance · 45–60 min",
       detail:"Conversational effort, RPE 3–4/10"},
     "long-ride":  {name:"Long Ride", kind:"cardio", tag:"Outdoor Zone 2 · 2–3 hr",

@@ -65,6 +65,9 @@ session. Each has 12–18 min of hard work and takes ~30 min with warm-up:
 **Tabata Triple**, **EMOM 16**, **90/90 Intervals** and the **12-min Burner**.
 They log like a ride, with a duration, a free-text score, HR and RPE.
 
+The bike is warm-up only. Clipless pedals mean a shoe change, so the work blocks
+use burpees, wall balls, dumbbells and the box, and cool-downs are on foot.
+
 ## Earlier days
 
 Sessions don't have to be logged the day they happen.

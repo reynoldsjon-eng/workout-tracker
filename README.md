@@ -29,6 +29,45 @@ Served at `https://reynoldsjon-eng.github.io/workout-tracker/`.
 Each B exercise has its own id, so progression and PRs don't mix the two lists.
 Sessions keep the block they were logged under.
 
+## Suggested progression
+
+An open lift shows 2–4 options worked out from the last session at that lift:
+**Add reps**, **Add weight**, **Repeat**, and **Reset −10%** when Stats flags it
+as plateaued or slipping. One is starred as the recommendation. Tapping one fills
+in the sets you haven't ticked yet.
+
+It uses double progression:
+- Add reps until every working set reaches the top of the range, then add
+  weight and drop back to the bottom.
+- Repeat if the last session fell short of the range or was logged at RPE 9.5+.
+- Warm-up ramp sets below the top weight are left alone.
+- Every suggested load is one the kit can actually make (see Equipment).
+
+## Equipment
+
+Suggested loads and the ± weight buttons under the active set only land on
+loads the home gym can make:
+
+| Kit | Steps |
+|---|---|
+| TRULAP 92 lb adjustable dumbbells | 8.5, 12, 15.5 … 88.5, 92 (3 / 3.5 lb). A logged 42.5 reads as the 42 setting. |
+| Cable stack | 10 lb |
+| Barbell (2.5 / 5 / 10 lb change plates) | +5 lb (2.5 a side); +10 on squats, deadlifts and hip thrusts |
+| Landmine, added weight on pull-ups/chin-ups | 5 lb |
+
+Equipment is inferred from the exercise name, with overrides in `EQUIP` for
+names that would be misread (e.g. Romanian Deadlift is done with dumbbells).
+
+## Metcons
+
+On the HIIT day, the Today card offers four metcons to swap in for the Zwift
+session. Each has 12–18 min of hard work and takes ~30 min with warm-up:
+**Tabata Triple**, **EMOM 16**, **90/90 Intervals** and the **12-min Burner**.
+They log like a ride, with a duration, a free-text score, HR and RPE.
+
+The bike is warm-up only. Clipless pedals mean a shoe change, so the work blocks
+use burpees, wall balls, dumbbells and the box, and cool-downs are on foot.
+
 ## Earlier days
 
 Sessions don't have to be logged the day they happen.

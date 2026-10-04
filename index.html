@@ -303,6 +303,8 @@ select.sel{
 .seg.sm button{padding:7px 4px;font-size:12px}
 .metcon .mk{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);margin-bottom:6px}
 .metcon .ml{font-size:14.5px;color:var(--text);line-height:1.5}
+.steps button.w{white-space:nowrap;font-size:12.5px;letter-spacing:-.02em;padding-left:2px;padding-right:2px}
+.steps button:disabled{opacity:.35}
 .progbox{padding:0 16px 4px}
 .progbox .pk{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px}
 .popts{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
@@ -387,7 +389,7 @@ const ROUTINE = {
         {id:"hip-thrust", name:"Barbell Hip Thrust", group:"posterior", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12},
          note:"Glute strength at low spinal load — directly counters cycling posture."},
         {id:"bulgarian-split-squat", name:"DB Bulgarian Split Squat", perSide:true, group:"quads", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12}},
-        {id:"romanian-deadlift", name:"Romanian Deadlift", group:"posterior", inc:5, A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12},
+        {id:"romanian-deadlift", name:"Romanian Deadlift", group:"posterior", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12},
          note:"Light–moderate, hinge from the hips. Swap to cable pull-through if the back is flaring."},
         {id:"pallof-press", name:"Pallof Press", perSide:true, group:"core", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}},
         {id:"dead-bug", name:"Dead Bug", bodyweight:true, perSide:true, group:"core", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}}
@@ -1019,26 +1021,58 @@ function buildExercise(ex, blk, date, logged){
    top weight, so warm-up ramps (135×10 before 185×5) don't count. A stalled
    lift (Stats' plateau rules) also gets a reset: ~10% off, rebuild.
    ========================================================================== */
-const isDB = ex => !/cable|pushdown|face pull|pallof|fly|pulldown/.test(ex.name.toLowerCase())
-                && /db|dumbbell|curl|lunge|split|goblet|calf/.test(ex.name.toLowerCase());
-function loadStep(ex){
-  if (ex.inc) return ex.inc;
-  const n = ex.name.toLowerCase();
-  if (/cable|pushdown|face pull|pallof|fly|pulldown/.test(n)) return 10;       // stack plates
-  if (isDB(ex))                                               return 5;
-  if (/squat|deadlift|hip thrust/.test(n))                    return 10;       // barbell lower body
-  return 5;                                                                     // barbell upper, landmine
+/* ---------- Equipment — what loads are actually reachable ----------
+   TRULAP 92 lb adjustable dumbbells (alternating 3 / 3.5 lb steps), a cable
+   stack in 10 lb plates, and 2.5 / 5 / 10 lb change plates for the bar — so
+   a barbell moves 5 lb at the least (2.5 a side), 10 on lower-body lifts.
+   Suggestions and the ± buttons only ever land on these. */
+const DB_SETTINGS = [8.5,12,15.5,18.5,22,25.5,28.5,32,35.5,38.5,42,45.5,48.5,52,55.5,58.5,62,65.5,68.5,72,75.5,78.5,82,85.5,88.5,92];
+const EQUIP = {                       // ids whose name alone would be misread
+  "romanian-deadlift":"db", "db-row":"db", "overhead-tricep-ext":"cable", "standing-calf-raise":"db",
+  "seated-calf-raise":"db", "neck":"plate", "weighted-pullup":"added", "chin-up":"added", "wall-ball-twist":"fixed"
+};
+function equipOf(ex){
+  if (ex.eq) return ex.eq;
+  if (EQUIP[ex.id]) return EQUIP[ex.id];
+  const n = String(ex.name || "").toLowerCase();
+  if (/wall ball/.test(n))                                                return "fixed";
+  if (/cable|pushdown|face pull|pallof|pulldown|rope/.test(n))            return "cable";
+  if (/landmine/.test(n))                                                 return "landmine";
+  if (/\bdb\b|dumbbell|goblet|hammer|incline curl|kickback|lunge|split squat|calf/.test(n)) return "db";
+  if (/pull.?up|chin.?up|dip/.test(n))                                    return "added";
+  return "barbell";
 }
-/* Adjustable dumbbells don't step in clean 5s (35.5 → 38.5 → 42.5 here), so
-   the next DB weight is the next one actually logged on any DB lift, if
-   there is one within a step. */
-function nextLoad(ex, top){
-  const step = loadStep(ex);
-  if (!isDB(ex) || ex.inc) return top + step;
-  const seen = sets().filter(e => e.weight >= top + 2 && e.weight <= top + step && isDB({name:e.exerciseName || ""})).map(e => e.weight);
-  return seen.length ? Math.min(...seen) : top + step;
+const barStep = ex => /squat|deadlift|hip thrust/.test(String(ex.name).toLowerCase()) ? 10 : 5;
+const STEP = {cable:10, landmine:5, added:5, plate:2.5};
+const dbIndex = w => DB_SETTINGS.reduce((b, v, i) => Math.abs(v - w) < Math.abs(DB_SETTINGS[b] - w) ? i : b, 0);
+
+/** The next reachable load above / below `w` (dir +1 / −1), or null if there's none. */
+function loadStepFrom(ex, w, dir){
+  const eq = equipOf(ex);
+  if (eq === "fixed") return null;
+  if (eq === "db"){
+    if (!w) return dir > 0 ? DB_SETTINGS[0] : null;
+    const i = dbIndex(w) + dir;                     // 42.5 logged reads as the 42 setting
+    return i < 0 ? null : i >= DB_SETTINGS.length ? null : DB_SETTINGS[i];
+  }
+  const step = eq === "barbell" ? barStep(ex) : STEP[eq] || 5;
+  const grain = {barbell:5, cable:10}[eq] || 2.5;     // smallest change the kit can make
+  const next = roundTo(w, grain) + dir * step;
+  return next < 0 ? null : next;
+}
+/** Nearest reachable load at or under `w` — for the −10% reset. */
+function loadAtMost(ex, w){
+  const eq = equipOf(ex);
+  if (eq === "db") return [...DB_SETTINGS].reverse().find(v => v <= w) ?? DB_SETTINGS[0];
+  const step = eq === "barbell" ? 5 : STEP[eq] || 5;
+  return Math.max(0, Math.floor(w / step) * step);
 }
 const roundTo = (v, step) => Math.max(0, Math.round(v / step) * step);
+const stepWhy = (ex, top, up) => {
+  const d = fmtW(+(up - top).toFixed(1)), eq = equipOf(ex);
+  return eq === "db" ? `next DB setting (+${d} lb)` : eq === "barbell" ? `+${d} lb (${fmtW((up - top) / 2)} a side)`
+       : eq === "cable" ? `+${d} lb, next plate` : `+${d} lb`;
+};
 
 function progressionOptions(ex){
   const last = ex.last, t = ex.target;
@@ -1048,7 +1082,7 @@ function progressionOptions(ex){
   const reps = work.map(s => s.reps || 0), minR = Math.min(...reps);
   const warm = last.sets.length - work.length;          // ramp sets below the top weight
   const n = Math.max(work.length, t.sets - warm, 1);    // keep the session's total at the target
-  const step = loadStep(ex), weighted = top > 0, up = nextLoad(ex, top);
+  const weighted = top > 0, up = loadStepFrom(ex, top, 1);
   const rpeHigh = work.some(s => (s.rpe || 0) >= 9.5);
   const list = (w, rs) => ({w, reps:rs});
   const fmt = o => (weighted ? fmtW(o.w) + " × " : o.w > 0 ? `+${fmtW(o.w)} lb · ` : "")
@@ -1059,18 +1093,19 @@ function progressionOptions(ex){
   const repTarget = Array.from({length:n}, (_, i) => Math.min(t.hi, (reps[i] ?? reps[reps.length-1]) + 1));
   if (minR < t.hi) opts.push({k:"reps", label:"Add reps", why:`Same weight, +1 rep a set toward ${t.hi}`, ...list(top, repTarget)});
 
-  if (weighted || !ex.bodyweight){
-    opts.push({k:"load", label:"Add weight", why: weighted ? `+${fmtW(up - top)} lb, back to ${t.lo} reps` : `Add ${step} lb, back to ${t.lo} reps`,
+  if (up != null && (weighted || !ex.bodyweight)){
+    opts.push({k:"load", label:"Add weight", why:`${weighted ? stepWhy(ex, top, up) : `Add ${fmtW(up)} lb`}, back to ${t.lo} reps`,
                ...list(up, Array(n).fill(t.lo))});
   } else {
-    opts.push({k:"set", label:"Add a set", why:"Bodyweight — more volume instead of load", ...list(0, [...repTarget, t.lo])});
+    opts.push({k:"set", label:"Add a set", why: up == null && weighted ? "Top of what the kit allows — more volume instead" : "Bodyweight — more volume instead of load",
+               ...list(top, [...repTarget, t.lo])});
   }
   opts.push({k:"hold", label:"Repeat", why:"Same as last time — own it before moving on", ...list(top, Array.from({length:n}, (_, i) => reps[i] ?? reps[reps.length-1]))});
 
   const st = trendStatus(progression(ex.id), metricFor(progression(ex.id), "e1"));
   if (weighted && (st.kind === "flat" || st.kind === "down"))
     opts.push({k:"reset", label:"Reset −10%", why:`${st.label} — ${st.since} sessions without a best. Drop the load, rebuild with clean reps`,
-               ...list(roundTo(top * 0.9, step), Array(n).fill(t.hi))});
+               ...list(loadAtMost(ex, top * 0.9), Array(n).fill(t.hi))});
 
   // One pick. A stall beats everything; then the rep range decides.
   const rec = (weighted && (st.kind === "flat" || st.kind === "down") && minR < t.hi) ? "reset"
@@ -1558,8 +1593,12 @@ function setRow(ex, i, st, j, prs){
     <button class="chk" onclick="${st.done?`unlogSet(${i},${j})`:`logSet(${i},${j})`}">${ICON.check}</button>
   </div>
   ${next ? `<div class="steps">
-    ${ex.bodyweight ? "" : `<button onclick="bump(${i},${j},'weight',-5)">−5 lb</button>
-    <button onclick="bump(${i},${j},'weight',5)">+5 lb</button>`}
+    ${ex.bodyweight || equipOf(ex) === "fixed" ? "" : (() => {
+      const w = st.weight ?? (gh ? gh.weight : 0) ?? 0, dn = loadStepFrom(ex, w, -1), up = loadStepFrom(ex, w, 1);
+      const lbl = (to, sign) => to == null ? "—" : `${sign}${fmtW(+Math.abs(to - w).toFixed(1))} lb`;
+      return `<button class="w" onclick="bump(${i},${j},'weight',-1)" ${dn == null ? "disabled" : ""}>${lbl(dn, "−")}</button>
+    <button class="w" onclick="bump(${i},${j},'weight',1)" ${up == null ? "disabled" : ""}>${lbl(up, "+")}</button>`;
+    })()}
     <button onclick="bump(${i},${j},'reps',-1)">−1</button>
     <button onclick="bump(${i},${j},'reps',1)">+1</button>
     <input class="rpe num" type="number" inputmode="decimal" step="0.5" min="1" max="10"
@@ -1648,7 +1687,10 @@ function setVal(i, j, k, v){ S.active.exercises[i].sets[j][k] = num(v); S.active
 function bump(i, j, k, d){
   const ex = S.active.exercises[i], st = ex.sets[j];
   const ghost = ex.last && ex.last.sets[j] ? ex.last.sets[j][k] : null;   // adjust from last week, not from zero
-  st[k] = Math.max(0, (st[k] ?? ghost ?? 0) + d); st.suggested = false;
+  const cur = st[k] ?? ghost ?? 0;
+  // Weight moves to the next load the kit can make; reps move by d.
+  st[k] = k === "weight" ? (loadStepFrom(ex, cur, d) ?? cur) : Math.max(0, cur + d);
+  st.suggested = false;
   persistActive(); render();
 }
 function focusEx(i){ S.active.cur = S.active.cur === i ? -1 : i; render(); }

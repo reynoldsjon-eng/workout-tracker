@@ -41,7 +41,22 @@ It uses double progression:
   weight and drop back to the bottom.
 - Repeat if the last session fell short of the range or was logged at RPE 9.5+.
 - Warm-up ramp sets below the top weight are left alone.
-- Dumbbell increases step to the next DB weight you've actually logged.
+- Every suggested load is one the kit can actually make (see Equipment).
+
+## Equipment
+
+Suggested loads and the ± weight buttons under the active set only land on
+loads the home gym can make:
+
+| Kit | Steps |
+|---|---|
+| TRULAP 92 lb adjustable dumbbells | 8.5, 12, 15.5 … 88.5, 92 (3 / 3.5 lb). A logged 42.5 reads as the 42 setting. |
+| Cable stack | 10 lb |
+| Barbell (2.5 / 5 / 10 lb change plates) | +5 lb (2.5 a side); +10 on squats, deadlifts and hip thrusts |
+| Landmine, added weight on pull-ups/chin-ups | 5 lb |
+
+Equipment is inferred from the exercise name, with overrides in `EQUIP` for
+names that would be misread (e.g. Romanian Deadlift is done with dumbbells).
 
 ## Metcons
 

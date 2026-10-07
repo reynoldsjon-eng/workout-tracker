@@ -384,8 +384,8 @@ const ROUTINE = {
       name:"Legs", kind:"strength", tag:"Strength · posterior-chain biased",
       warmup:"90/90 hip switches · couch stretch · banded glute bridges ×15 · bodyweight squats ×10",
       exercises:[
-        {id:"back-squat", name:"Back Squat", main:true, group:"quads", A:{sets:4,lo:4,hi:6}, B:{sets:4,lo:8,hi:12},
-         note:"Braced neutral spine. If the back is symptomatic, drop load/range or swap to front or goblet squat."},
+        {id:"front-squat", name:"Front Squat", main:true, group:"quads", A:{sets:4,lo:4,hi:6}, B:{sets:4,lo:8,hi:12},
+         note:"Elbows high, upright torso. If the back is symptomatic, drop load/range or swap to goblet squat."},
         {id:"hip-thrust", name:"Barbell Hip Thrust", group:"posterior", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12},
          note:"Glute strength at low spinal load — directly counters cycling posture."},
         {id:"bulgarian-split-squat", name:"DB Bulgarian Split Squat", perSide:true, group:"quads", A:{sets:3,lo:8,hi:8}, B:{sets:3,lo:12,hi:12}},
@@ -395,10 +395,10 @@ const ROUTINE = {
         {id:"dead-bug", name:"Dead Bug", bodyweight:true, perSide:true, group:"core", A:{sets:3,lo:10,hi:10}, B:{sets:3,lo:10,hi:10}}
       ],
       B:{
-        tag:"Hypertrophy · quad-led, low spinal load",
+        tag:"Hypertrophy · quad-led",
         exercises:[
-          {id:"front-squat", name:"Front Squat", main:true, group:"quads", B:{sets:4,lo:8,hi:10},
-           note:"From the rack. Upright torso spares the back. Start ~95 lb and add 5–10 once all sets hit 10."},
+          {id:"back-squat", name:"Back Squat", main:true, group:"quads", B:{sets:4,lo:8,hi:10},
+           note:"High bar, braced neutral spine. If the back flares, drop load/range or swap to front or goblet squat."},
           {id:"cable-leg-extension", name:"Cable Leg Extension", perSide:true, group:"quads", B:{sets:3,lo:12,hi:15},
            note:"Ankle strap, low pulley, seated on the bench facing away. Pause 1 s at lockout. Start light."},
           {id:"db-reverse-lunge", name:"DB Reverse Lunge", perSide:true, group:"quads", B:{sets:3,lo:10,hi:12},

@@ -20,7 +20,7 @@ Served at `https://reynoldsjon-eng.github.io/workout-tracker/`.
 
 - **Block A** is strength: the original exercise list at 4×4–6 on mains.
 - **Block B** is hypertrophy, and swaps in its own lifting-day exercises:
-  - **Legs:** front squat and cable leg extensions.
+  - **Legs:** back squat (Block A is front squat) and cable leg extensions.
   - **Upper:** incline barbell bench and chin-ups.
   - **Arms:** weighted single-leg calf raises.
   

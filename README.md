@@ -14,7 +14,8 @@ Self-hosted on the house mini PC at `https://ppc-hub.tail180281.ts.net:8443/` (s
 | `sw.js` | Service worker, offline shell |
 | `manifest.json` | PWA metadata for Add to Home Screen |
 | `server.py` | Self-hosted server: serves the app and keeps `log.json` |
-| `deploy/workout-tracker.service` | systemd user unit for `server.py` |
+| `deploy/workout-tracker.service` | systemd unit for `server.py` |
+| `deploy/backup.sh`, `workout-backup.*` | nightly push of `log.json` to the private repo |
 | `icon-*.png` | Home screen icons |
 
 ## Blocks
@@ -217,8 +218,36 @@ one starts empty and fills from the server on first launch.
 **Backups.** Writes are atomic, and the first write each day copies the previous
 `log.json` to `~/workout-data/backups/log-YYYY-MM-DD.json`. Those copies are on the
 same NVMe that `HUB_HOST.md` says to watch, and Proxmox backups aren't configured yet.
-Until they are, the private `workout-data` repo is the only off-box copy, and it
-stops updating once the phone moves to this server.
+So `deploy/backup.sh` commits the log to the private `workout-data` repo each night
+at 03:17. It skips the commit if nothing changed. It refuses to overwrite the backup
+if the log has fewer entries than last time, because an append-only log never
+shrinks. Every night's version is kept in that repo's git history.
+
+**Off-box backup setup**, once, in the hub VM:
+
+```
+ssh-keygen -t ed25519 -N "" -C "ppc-hub backup" -f ~/.ssh/workout-data-deploy
+cat ~/.ssh/workout-data-deploy.pub
+```
+
+Add that public key on GitHub: `workout-data` → Settings → Deploy keys → Add deploy
+key, with **Allow write access** ticked. The key can only reach that one repo. Then:
+
+```
+~/workout-tracker/deploy/backup.sh            # first run: clones, commits, pushes
+for f in workout-backup.service workout-backup.timer; do
+  sed "s/USER/$USER/g" ~/workout-tracker/deploy/$f | sudo tee /etc/systemd/system/$f >/dev/null
+done
+sudo systemctl daemon-reload && sudo systemctl enable --now workout-backup.timer
+systemctl list-timers workout-backup          # next run
+journalctl -u workout-backup                  # what the last run did
+```
+
+Restoring is copying `log.json` from `workout-data` back to `~/workout-data/`. Or
+import it in the app, which merges instead of replacing.
+
+A phone still on GitHub sync merges whatever the backup pushes, so leaving an old
+install connected loses nothing.
 
 ## Local development
 

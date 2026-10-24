@@ -16,6 +16,7 @@ Self-hosted on the house mini PC at `https://ppc-hub.tail180281.ts.net:8443/` (s
 | `server.py` | Self-hosted server: serves the app and keeps `log.json` |
 | `deploy/workout-tracker.service` | systemd unit for `server.py` |
 | `deploy/backup.sh`, `workout-backup.*` | nightly push of `log.json` to the private repo |
+| `deploy/setup-from-desktop.sh`, `install-on-hub.sh` | one-command install on the hub |
 | `icon-*.png` | Home screen icons |
 
 ## Blocks
@@ -163,6 +164,18 @@ Unlike the hub, which is copied over from the Windows desktop, this app deploys 
 `git pull` on the VM. The repo is public, and git leaves CRLF, directory permissions
 and machine-local files alone, which are the traps in the hub's `HUB_HOST.md`. The log
 lives in `~/workout-data/`, outside the checkout, so no deploy can overwrite it.
+
+**The quick way:** from the desktop, in Git Bash, run
+
+```
+curl -fsSLO https://raw.githubusercontent.com/reynoldsjon-eng/workout-tracker/main/deploy/setup-from-desktop.sh && bash setup-from-desktop.sh
+```
+
+It does everything below: it copies the log, installs the service, sets up
+`tailscale serve` on :8443 and checks the hub's 443 entry survived, then sets up the
+backup. It adds the deploy key itself if `gh` is logged in. Otherwise it prints the
+key and waits while you add it. It asks for the hub's sudo password, and it's safe
+to re-run. The manual steps follow.
 
 Once, from the desktop in Git Bash, copy the existing log over from the private repo
 (the hub VM has no GitHub login, so it can't clone it). The alternative is Export /

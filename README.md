@@ -158,28 +158,53 @@ hub owns HTTPS on 443, so the training app gets its own port, **8443**. Separate
 ports make separate origins, so neither app's storage or service worker can affect
 the other's.
 
-In the hub VM (Python 3.8+):
+Unlike the hub, which is copied over from the Windows desktop, this app deploys with
+`git pull` on the VM. The repo is public, and git leaves CRLF, directory permissions
+and machine-local files alone, which are the traps in the hub's `HUB_HOST.md`. The log
+lives in `~/workout-data/`, outside the checkout, so no deploy can overwrite it.
+
+Once, from the desktop in Git Bash, copy the existing log over from the private repo
+(the hub VM has no GitHub login, so it can't clone it). The alternative is Export /
+Import, below.
+
+```
+git clone https://github.com/reynoldsjon-eng/workout-data.git /tmp/wd
+ssh hub 'mkdir -p ~/workout-data' && scp /tmp/wd/log.json hub:workout-data/ && rm -rf /tmp/wd
+```
+
+Then in the hub VM (`ssh hub`):
 
 ```
 git clone https://github.com/reynoldsjon-eng/workout-tracker.git ~/workout-tracker
-mkdir -p ~/workout-data
 
-# Bring the existing log over from the private repo (or use Export / Import, below)
-git clone https://github.com/reynoldsjon-eng/workout-data.git /tmp/wd && cp /tmp/wd/log.json ~/workout-data/
-
-# Run it as a service
-mkdir -p ~/.config/systemd/user
-cp ~/workout-tracker/deploy/workout-tracker.service ~/.config/systemd/user/
-systemctl --user daemon-reload && systemctl --user enable --now workout-tracker
-sudo loginctl enable-linger "$USER"
+# A system service, like ppc-hub.service
+sed "s/USER/$USER/g" ~/workout-tracker/deploy/workout-tracker.service \
+  | sudo tee /etc/systemd/system/workout-tracker.service >/dev/null
+sudo systemctl daemon-reload && sudo systemctl enable --now workout-tracker
+curl -s localhost:8777/api/log | head -c 200   # should show your entries
 
 # HTTPS on the tailnet: https://ppc-hub.tail180281.ts.net:8443/
 tailscale serve status                       # note the hub's existing 443 entry
 sudo tailscale serve --bg --https=8443 http://127.0.0.1:8777
-tailscale serve status                       # 443 → :3000 still there, 8443 → :8777 added
+tailscale serve status                       # 443 → :3000 still there, 8443 → :8777 added, tailnet only
 ```
 
 Don't run a bare `tailscale serve --bg 8777`. That maps port 443 and replaces the hub.
+Use `serve`, never `funnel`.
+
+```
+systemctl status workout-tracker
+journalctl -u workout-tracker -f
+```
+
+**Deploying** from the desktop, after a change is merged to `main`:
+
+```
+ssh hub 'cd ~/workout-tracker && git pull --ff-only && sudo systemctl restart workout-tracker'
+```
+
+The restart only matters when `server.py` changed. App changes reach the phone on
+its next online launch.
 
 **Moving a phone over.** Each URL is its own origin with its own storage, so the new
 one starts empty and fills from the server on first launch.
@@ -190,11 +215,10 @@ one starts empty and fills from the server on first launch.
 3. Share → **Add to Home Screen**, and delete the old icon.
 
 **Backups.** Writes are atomic, and the first write each day copies the previous
-`log.json` to `~/workout-data/backups/log-YYYY-MM-DD.json`.
-
-**Updates.** The server runs from the checkout, so `git pull` in `~/workout-tracker`
-is a deploy. Restart the service only when `server.py` changes.
-
+`log.json` to `~/workout-data/backups/log-YYYY-MM-DD.json`. Those copies are on the
+same NVMe that `HUB_HOST.md` says to watch, and Proxmox backups aren't configured yet.
+Until they are, the private `workout-data` repo is the only off-box copy, and it
+stops updating once the phone moves to this server.
 
 ## Local development
 

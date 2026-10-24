@@ -1,0 +1,14 @@
+# systemd unit for server.py, installed alongside ppc-hub.service on the hub VM.
+# USER is filled in at install time (see README → Self-hosting):
+#   sed "s/USER/$USER/g" deploy/workout-tracker.service | sudo tee /etc/systemd/system/workout-tracker.service
+[Unit]
+Description=Training app + log.json
+After=network-online.target
+
+[Service]
+User=USER
+ExecStart=/usr/bin/python3 /home/USER/workout-tracker/server.py --data /home/USER/workout-data/log.json
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

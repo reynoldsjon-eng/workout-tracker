@@ -1,0 +1,11 @@
+# Runs deploy/backup.sh once. Fired nightly by workout-backup.timer.
+# USER is filled in at install time, as for workout-tracker.service.
+[Unit]
+Description=Back up training log.json to the private workout-data repo
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=USER
+ExecStart=/home/USER/workout-tracker/deploy/backup.sh

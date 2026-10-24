@@ -62,12 +62,14 @@ self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
 
-  // Never intercept the GitHub API — sync must always see live data.
-  if (new URL(req.url).origin !== self.location.origin) return;
+  // Never intercept sync, GitHub's API or our own server's — it must always see live data.
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.includes("/api/")) return;
 
   if (req.mode === "navigate"){
     e.respondWith(networkFirst(req, "./index.html"));
     return;
   }
-  e.respondWith(IMMUTABLE.test(new URL(req.url).pathname) ? cacheFirst(req) : networkFirst(req));
+  e.respondWith(IMMUTABLE.test(url.pathname) ? cacheFirst(req) : networkFirst(req));
 });

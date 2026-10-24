@@ -3,7 +3,8 @@
 A workout logger built around a Huberman-adapted 6–7 day strength + endurance plan.
 Single self-contained `index.html` — no build step, no dependencies.
 
-Served at `https://reynoldsjon-eng.github.io/workout-tracker/`.
+Self-hosted on the house mini PC at `https://ppc-hub.tail180281.ts.net:8443/` (see **Self-hosting**). The GitHub Pages copy at
+`https://reynoldsjon-eng.github.io/workout-tracker/` still works with GitHub sync.
 
 ## What's here
 
@@ -12,6 +13,9 @@ Served at `https://reynoldsjon-eng.github.io/workout-tracker/`.
 | `index.html` | The whole app — markup, styles, logic |
 | `sw.js` | Service worker, offline shell |
 | `manifest.json` | PWA metadata for Add to Home Screen |
+| `server.py` | Self-hosted server: serves the app and keeps `log.json` |
+| `deploy/workout-tracker.service` | systemd unit for `server.py` |
+| `deploy/backup.sh`, `workout-backup.*` | nightly push of `log.json` to the private repo |
 | `icon-*.png` | Home screen icons |
 
 ## Blocks
@@ -133,13 +137,125 @@ Falls back to `localStorage`, then to memory, if IndexedDB is unavailable — wi
 visible warning rather than a blank screen.
 
 **No personal training data belongs in this repo.** It's public so GitHub Pages can
-serve it. Logs sync to a separate private repo.
+serve it. Logs sync to `log.json` on the self-hosted server, kept outside this
+checkout, or to a separate private repo.
+
+Sync has two backends behind the same pull → merge → push loop:
+- **Server** — when the page is served by `server.py`, it syncs to that server with no
+  setup. The server rejects a write made against a stale copy (409), and the app
+  refetches and merges, as with GitHub.
+- **GitHub** — a private repo and a fine-grained token, set up under Settings → Sync.
+
+## Self-hosting
+
+`server.py` serves the app and `log.json` from one origin. It uses only the Python
+standard library. It binds to localhost, and `tailscale serve` puts HTTPS in front of it.
+Safari needs HTTPS for the offline service worker and Add to Home Screen. Anyone on
+the tailnet can read and write the log, and nobody outside it can reach it.
+
+It runs in the **hub VM** on the house mini PC (Proxmox). That VM already runs the
+Pinot Pony Club Hub (`next start` on :3000) and is on the tailnet as `ppc-hub`. The
+hub owns HTTPS on 443, so the training app gets its own port, **8443**. Separate
+ports make separate origins, so neither app's storage or service worker can affect
+the other's.
+
+Unlike the hub, which is copied over from the Windows desktop, this app deploys with
+`git pull` on the VM. The repo is public, and git leaves CRLF, directory permissions
+and machine-local files alone, which are the traps in the hub's `HUB_HOST.md`. The log
+lives in `~/workout-data/`, outside the checkout, so no deploy can overwrite it.
+
+Once, from the desktop in Git Bash, copy the existing log over from the private repo
+(the hub VM has no GitHub login, so it can't clone it). The alternative is Export /
+Import, below.
+
+```
+git clone https://github.com/reynoldsjon-eng/workout-data.git /tmp/wd
+ssh hub 'mkdir -p ~/workout-data' && scp /tmp/wd/log.json hub:workout-data/ && rm -rf /tmp/wd
+```
+
+Then in the hub VM (`ssh hub`):
+
+```
+git clone https://github.com/reynoldsjon-eng/workout-tracker.git ~/workout-tracker
+
+# A system service, like ppc-hub.service
+sed "s/USER/$USER/g" ~/workout-tracker/deploy/workout-tracker.service \
+  | sudo tee /etc/systemd/system/workout-tracker.service >/dev/null
+sudo systemctl daemon-reload && sudo systemctl enable --now workout-tracker
+curl -s localhost:8777/api/log | head -c 200   # should show your entries
+
+# HTTPS on the tailnet: https://ppc-hub.tail180281.ts.net:8443/
+tailscale serve status                       # note the hub's existing 443 entry
+sudo tailscale serve --bg --https=8443 http://127.0.0.1:8777
+tailscale serve status                       # 443 → :3000 still there, 8443 → :8777 added, tailnet only
+```
+
+Don't run a bare `tailscale serve --bg 8777`. That maps port 443 and replaces the hub.
+Use `serve`, never `funnel`.
+
+```
+systemctl status workout-tracker
+journalctl -u workout-tracker -f
+```
+
+**Deploying** from the desktop, after a change is merged to `main`:
+
+```
+ssh hub 'cd ~/workout-tracker && git pull --ff-only && sudo systemctl restart workout-tracker'
+```
+
+The restart only matters when `server.py` changed. App changes reach the phone on
+its next online launch.
+
+**Moving a phone over.** Each URL is its own origin with its own storage, so the new
+one starts empty and fills from the server on first launch.
+1. On the old app, Settings → **Sync now**. If you didn't copy `log.json` from the
+   private repo, use **Export log.json** here too.
+2. Open `https://ppc-hub.tail180281.ts.net:8443/` in Safari. It connects to the server on its own. If you
+   exported, use **Import log.json**.
+3. Share → **Add to Home Screen**, and delete the old icon.
+
+**Backups.** Writes are atomic, and the first write each day copies the previous
+`log.json` to `~/workout-data/backups/log-YYYY-MM-DD.json`. Those copies are on the
+same NVMe that `HUB_HOST.md` says to watch, and Proxmox backups aren't configured yet.
+So `deploy/backup.sh` commits the log to the private `workout-data` repo each night
+at 03:17. It skips the commit if nothing changed. It refuses to overwrite the backup
+if the log has fewer entries than last time, because an append-only log never
+shrinks. Every night's version is kept in that repo's git history.
+
+**Off-box backup setup**, once, in the hub VM:
+
+```
+ssh-keygen -t ed25519 -N "" -C "ppc-hub backup" -f ~/.ssh/workout-data-deploy
+cat ~/.ssh/workout-data-deploy.pub
+```
+
+Add that public key on GitHub: `workout-data` → Settings → Deploy keys → Add deploy
+key, with **Allow write access** ticked. The key can only reach that one repo. Then:
+
+```
+~/workout-tracker/deploy/backup.sh            # first run: clones, commits, pushes
+for f in workout-backup.service workout-backup.timer; do
+  sed "s/USER/$USER/g" ~/workout-tracker/deploy/$f | sudo tee /etc/systemd/system/$f >/dev/null
+done
+sudo systemctl daemon-reload && sudo systemctl enable --now workout-backup.timer
+systemctl list-timers workout-backup          # next run
+journalctl -u workout-backup                  # what the last run did
+```
+
+Restoring is copying `log.json` from `workout-data` back to `~/workout-data/`. Or
+import it in the app, which merges instead of replacing.
+
+A phone still on GitHub sync merges whatever the backup pushes, so leaving an old
+install connected loses nothing.
 
 ## Local development
 
 ```
-python -m http.server 8777 --directory app
+python3 server.py --data ./data/log.json
 ```
+
+`data/` is gitignored.
 
 Opening `index.html` straight off disk works on desktop, but there is no service
 worker and no Home Screen install — and on iOS the Files app preview won't run it

@@ -3,7 +3,7 @@
 A workout logger built around a Huberman-adapted 6–7 day strength + endurance plan.
 Single self-contained `index.html` — no build step, no dependencies.
 
-Self-hosted on the mini PC over Tailscale (see **Self-hosting**). The GitHub Pages copy at
+Self-hosted on the house mini PC at `https://ppc-hub.tail180281.ts.net:8443/` (see **Self-hosting**). The GitHub Pages copy at
 `https://reynoldsjon-eng.github.io/workout-tracker/` still works with GitHub sync.
 
 ## What's here
@@ -152,7 +152,13 @@ standard library. It binds to localhost, and `tailscale serve` puts HTTPS in fro
 Safari needs HTTPS for the offline service worker and Add to Home Screen. Anyone on
 the tailnet can read and write the log, and nobody outside it can reach it.
 
-On the mini PC (Linux, Python 3.8+, Tailscale already logged in):
+It runs in the **hub VM** on the house mini PC (Proxmox). That VM already runs the
+Pinot Pony Club Hub (`next start` on :3000) and is on the tailnet as `ppc-hub`. The
+hub owns HTTPS on 443, so the training app gets its own port, **8443**. Separate
+ports make separate origins, so neither app's storage or service worker can affect
+the other's.
+
+In the hub VM (Python 3.8+):
 
 ```
 git clone https://github.com/reynoldsjon-eng/workout-tracker.git ~/workout-tracker
@@ -167,18 +173,19 @@ cp ~/workout-tracker/deploy/workout-tracker.service ~/.config/systemd/user/
 systemctl --user daemon-reload && systemctl --user enable --now workout-tracker
 sudo loginctl enable-linger "$USER"
 
-# HTTPS on the tailnet: https://<machine>.<tailnet>.ts.net/
-sudo tailscale serve --bg 8777
+# HTTPS on the tailnet: https://ppc-hub.tail180281.ts.net:8443/
+tailscale serve status                       # note the hub's existing 443 entry
+sudo tailscale serve --bg --https=8443 http://127.0.0.1:8777
+tailscale serve status                       # 443 → :3000 still there, 8443 → :8777 added
 ```
 
-`tailscale serve` needs **MagicDNS** and **HTTPS certificates** turned on under DNS in
-the Tailscale admin console. `tailscale serve status` prints the URL.
+Don't run a bare `tailscale serve --bg 8777`. That maps port 443 and replaces the hub.
 
 **Moving a phone over.** Each URL is its own origin with its own storage, so the new
 one starts empty and fills from the server on first launch.
 1. On the old app, Settings → **Sync now**. If you didn't copy `log.json` from the
    private repo, use **Export log.json** here too.
-2. Open the `ts.net` URL in Safari. It connects to the server on its own. If you
+2. Open `https://ppc-hub.tail180281.ts.net:8443/` in Safari. It connects to the server on its own. If you
    exported, use **Import log.json**.
 3. Share → **Add to Home Screen**, and delete the old icon.
 

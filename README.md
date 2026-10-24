@@ -3,7 +3,8 @@
 A workout logger built around a Huberman-adapted 6–7 day strength + endurance plan.
 Single self-contained `index.html` — no build step, no dependencies.
 
-Served at `https://reynoldsjon-eng.github.io/workout-tracker/`.
+Self-hosted on the mini PC over Tailscale (see **Self-hosting**). The GitHub Pages copy at
+`https://reynoldsjon-eng.github.io/workout-tracker/` still works with GitHub sync.
 
 ## What's here
 
@@ -12,6 +13,8 @@ Served at `https://reynoldsjon-eng.github.io/workout-tracker/`.
 | `index.html` | The whole app — markup, styles, logic |
 | `sw.js` | Service worker, offline shell |
 | `manifest.json` | PWA metadata for Add to Home Screen |
+| `server.py` | Self-hosted server: serves the app and keeps `log.json` |
+| `deploy/workout-tracker.service` | systemd user unit for `server.py` |
 | `icon-*.png` | Home screen icons |
 
 ## Blocks
@@ -133,13 +136,66 @@ Falls back to `localStorage`, then to memory, if IndexedDB is unavailable — wi
 visible warning rather than a blank screen.
 
 **No personal training data belongs in this repo.** It's public so GitHub Pages can
-serve it. Logs sync to a separate private repo.
+serve it. Logs sync to `log.json` on the self-hosted server, kept outside this
+checkout, or to a separate private repo.
+
+Sync has two backends behind the same pull → merge → push loop:
+- **Server** — when the page is served by `server.py`, it syncs to that server with no
+  setup. The server rejects a write made against a stale copy (409), and the app
+  refetches and merges, as with GitHub.
+- **GitHub** — a private repo and a fine-grained token, set up under Settings → Sync.
+
+## Self-hosting
+
+`server.py` serves the app and `log.json` from one origin. It uses only the Python
+standard library. It binds to localhost, and `tailscale serve` puts HTTPS in front of it.
+Safari needs HTTPS for the offline service worker and Add to Home Screen. Anyone on
+the tailnet can read and write the log, and nobody outside it can reach it.
+
+On the mini PC (Linux, Python 3.8+, Tailscale already logged in):
+
+```
+git clone https://github.com/reynoldsjon-eng/workout-tracker.git ~/workout-tracker
+mkdir -p ~/workout-data
+
+# Bring the existing log over from the private repo (or use Export / Import, below)
+git clone https://github.com/reynoldsjon-eng/workout-data.git /tmp/wd && cp /tmp/wd/log.json ~/workout-data/
+
+# Run it as a service
+mkdir -p ~/.config/systemd/user
+cp ~/workout-tracker/deploy/workout-tracker.service ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now workout-tracker
+sudo loginctl enable-linger "$USER"
+
+# HTTPS on the tailnet: https://<machine>.<tailnet>.ts.net/
+sudo tailscale serve --bg 8777
+```
+
+`tailscale serve` needs **MagicDNS** and **HTTPS certificates** turned on under DNS in
+the Tailscale admin console. `tailscale serve status` prints the URL.
+
+**Moving a phone over.** Each URL is its own origin with its own storage, so the new
+one starts empty and fills from the server on first launch.
+1. On the old app, Settings → **Sync now**. If you didn't copy `log.json` from the
+   private repo, use **Export log.json** here too.
+2. Open the `ts.net` URL in Safari. It connects to the server on its own. If you
+   exported, use **Import log.json**.
+3. Share → **Add to Home Screen**, and delete the old icon.
+
+**Backups.** Writes are atomic, and the first write each day copies the previous
+`log.json` to `~/workout-data/backups/log-YYYY-MM-DD.json`.
+
+**Updates.** The server runs from the checkout, so `git pull` in `~/workout-tracker`
+is a deploy. Restart the service only when `server.py` changes.
+
 
 ## Local development
 
 ```
-python -m http.server 8777 --directory app
+python3 server.py --data ./data/log.json
 ```
+
+`data/` is gitignored.
 
 Opening `index.html` straight off disk works on desktop, but there is no service
 worker and no Home Screen install — and on iOS the Files app preview won't run it

@@ -1,0 +1,14 @@
+# systemd user unit — runs server.py from the checkout at ~/workout-tracker.
+#   mkdir -p ~/.config/systemd/user && cp deploy/workout-tracker.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now workout-tracker
+#   sudo loginctl enable-linger "$USER"     # keep it running when you're logged out
+[Unit]
+Description=Training app + log.json
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/env python3 %h/workout-tracker/server.py --data %h/workout-data/log.json
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

@@ -629,16 +629,19 @@ async function saveEntry(e){
 }
 
 /* ==========================================================================
-   Sync — a private GitHub repo holds log.json and is the source of truth
-   across devices. The log being append-only is what makes this safe: merging
+   Sync — log.json is the source of truth across devices. It lives either on
+   the self-hosted server this page came from (server.py, on the tailnet) or
+   in a private GitHub repo. The log being append-only is what makes this safe: merging
    two devices is a union keyed on entry id, with the newer ts winning, so
    nothing is ever lost to a race. A stale-sha rejection just means refetch
    and retry.
 
-   The token lives in localStorage only. It is never written to the entry log,
-   never exported, and never committed.
+   The GitHub token lives in localStorage only. It is never written to the
+   entry log, never exported, and never committed. The server needs no token:
+   being on the tailnet is the auth.
    ========================================================================== */
 const GH_API = "https://api.github.com";
+const SERVER_LOG = "api/log";
 
 function b64enc(str){
   const bytes = new TextEncoder().encode(str);
@@ -671,7 +674,17 @@ const Sync = {
 
   get cfg(){ try { return JSON.parse(localStorage.getItem("wt.sync") || "null"); } catch(e){ return null; } },
   set cfg(v){ try { v ? localStorage.setItem("wt.sync", JSON.stringify(v)) : localStorage.removeItem("wt.sync"); } catch(e){} },
-  get on(){ const c = this.cfg; return !!(c && c.token && c.owner && c.repo); },
+  get on(){ const c = this.cfg; return !!(c && (c.kind === "server" || (c.token && c.owner && c.repo))); },
+  get server(){ const c = this.cfg; return !!(c && c.kind === "server"); },
+
+  /* Served by server.py? Then sync to it with no setup. An explicit
+     disconnect is remembered, so this doesn't reconnect behind your back. */
+  here: false,
+  async detect(){
+    if (!location.protocol.startsWith("http")) return;
+    try { this.here = (await fetch(SERVER_LOG, {method:"GET", cache:"no-store"})).ok; } catch(e){ this.here = false; }
+    if (this.here && !this.cfg) this.cfg = {kind:"server"};
+  },
 
   async api(path, opts = {}){
     const c = this.cfg;
@@ -701,6 +714,12 @@ const Sync = {
 
   async pull(){
     const c = this.cfg;
+    if (this.server){
+      const r = await fetch(SERVER_LOG, {cache:"no-store"});
+      if (!r.ok) throw new Error(await this.serverErr(r));
+      const j = await r.json();
+      return {entries: j.entries || [], sha: j.sha};
+    }
     const r = await this.api(`/repos/${c.owner}/${c.repo}/contents/${c.path}?ref=${c.branch}`);
     if (r.status === 404){
       // Ambiguous: log.json not created yet (fine, first sync) vs repo gone or
@@ -717,8 +736,21 @@ const Sync = {
     return {entries: Array.isArray(data) ? data : (data.entries || []), sha: j.sha};
   },
 
+  async serverErr(r){
+    let d = "";
+    try { d = (await r.json()).message || ""; } catch(e){}
+    return `Server ${r.status}${d ? " — " + d : ""}`;
+  },
+
   async push(entries, sha, msg){
     const c = this.cfg;
+    if (this.server){
+      const r = await fetch(SERVER_LOG, {method:"PUT", cache:"no-store",
+        headers:{"Content-Type":"application/json"}, body:JSON.stringify({sha, entries})});
+      if (r.status === 409) return {conflict:true};
+      if (!r.ok) throw new Error(await this.serverErr(r));
+      return {ok:true};
+    }
     const body = {
       message: msg,
       content: b64enc(JSON.stringify({schema:1, updated:new Date().toISOString(), entries}, null, 2)),
@@ -2399,7 +2431,12 @@ function viewSettings(){
 function viewSync(){
   const c = Sync.cfg, st = Sync.state;
   if (!Sync.on){
-    return `<div class="card">
+    return `${Sync.here ? `<div class="card">
+      <div class="sub" style="margin-bottom:14px">
+        This page is served by your own server, which keeps <b>log.json</b> for every device on the tailnet.
+      </div>
+      <button class="btn" onclick="connectServer()">Sync to ${esc(location.host)}</button>
+    </div>` : ""}<div class="card">
       <div class="sub" style="margin-bottom:14px">
         Point this at a <b>private</b> repo holding <b>log.json</b>. Every device that connects
         to it stays in step. Your token is stored on this device only.
@@ -2422,8 +2459,8 @@ function viewSync(){
     : [`Up to date · ${when}`,"var(--accent)"];
   return `<div class="card">
     <div class="between" style="padding-bottom:12px">
-      <span class="dim trunc">${esc(c.owner)}/${esc(c.repo)}</span>
-      <span class="dim2" style="font-size:12.5px">${esc(c.path)}</span>
+      <span class="dim trunc">${c.kind === "server" ? esc(location.host) : `${esc(c.owner)}/${esc(c.repo)}`}</span>
+      <span class="dim2" style="font-size:12.5px">${esc(c.path || "log.json")}</span>
     </div>
     <div style="border-top:1px solid var(--line-soft);padding-top:12px;color:${status[1]};font-size:14px;font-weight:600">
       ${esc(status[0])}
@@ -2451,9 +2488,17 @@ async function connectSync(){
   await Sync.run("first sync");
 }
 
+async function connectServer(){
+  Sync.cfg = {kind:"server"};
+  toast("Connected"); render();
+  await Sync.run("first sync");
+}
+
 function disconnectSync(){
-  if (!confirm("Disconnect sync? Your logs stay on this device; the token is forgotten.")) return;
-  Sync.cfg = null; Sync.state = {busy:false, last:null, error:null, pending:false};
+  if (!confirm(Sync.server ? "Disconnect sync? Your logs stay on this device."
+    : "Disconnect sync? Your logs stay on this device; the token is forgotten.")) return;
+  Sync.cfg = Sync.server ? {kind:"off"} : null;
+  Sync.state = {busy:false, last:null, error:null, pending:false};
   render(); toast("Disconnected");
 }
 
@@ -2554,6 +2599,7 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
 
     Sync.state.last = S.meta.lastSync || null;
     render();
+    await Sync.detect();
     Sync.run("launch");
   }catch(err){
     // Never fail to a black screen — say what broke.
@@ -2575,7 +2621,7 @@ Object.assign(window, {go, startSession, logSet, unlogSet, finishSession, closeS
   setVal, bump, focusEx, addSet, openDetail, setBlock, sheetAddExercise, confirmAddExercise, stepIn, quickAdd,
   commitEdit, commitAll, commitSet, cardioDirty,
   exportJSON, importJSON, adjustRest, skipRest, blockInfo, num, persistActive, S, DB,
-  Sync, connectSync, disconnectSync, mergeEntries, sheetNote, saveNote, exNote, distKm,
+  Sync, connectSync, connectServer, disconnectSync, mergeEntries, sheetNote, saveNote, exNote, distKm,
   sheetPickDay, sheetDay, editSession, deleteSession, dayLabelLong, sessionsOn, mobilityOn, shiftDate,
   progressionOptions, applyProgression, setRange, setStatsExercise, setStatsMetric, openProgression, trendStatus, toggleGroup, e1rm, groupOf, bestSet, prIds, progression, weekStart});
 </script>

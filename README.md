@@ -3,7 +3,7 @@
 A workout logger built around a Huberman-adapted 6–7 day strength + endurance plan.
 Single self-contained `index.html` — no build step, no dependencies.
 
-Self-hosted on the house mini PC at `https://ppc-hub.tail180281.ts.net:8443/` (see **Self-hosting**). The GitHub Pages copy at
+Self-hosted on the house mini PC at `https://ppc-hub.tail180281.ts.net:10000/` (see **Self-hosting**). The GitHub Pages copy at
 `https://reynoldsjon-eng.github.io/workout-tracker/` still works with GitHub sync.
 
 ## What's here
@@ -156,9 +156,17 @@ the tailnet can read and write the log, and nobody outside it can reach it.
 
 It runs in the **hub VM** on the house mini PC (Proxmox). That VM already runs the
 Pinot Pony Club Hub (`next start` on :3000) and is on the tailnet as `ppc-hub`. The
-hub owns HTTPS on 443, so the training app gets its own port, **8443**. Separate
-ports make separate origins, so neither app's storage or service worker can affect
-the other's.
+VM serves three apps, one HTTPS port each. Tailscale only allows HTTPS on these three
+ports, so all of them are now taken:
+
+| Port | App | Local |
+|---|---|---|
+| 443 | PPC Hub | `:3000` |
+| 8443 | Shannon's tracker (`sb-training`) | `:3100` |
+| **10000** | **this app** | `:8777` |
+
+Each port is its own origin, so the apps' storage and service workers stay separate.
+The installer won't take a port that's already serving something else.
 
 Unlike the hub, which is copied over from the Windows desktop, this app deploys with
 `git pull` on the VM. The repo is public, and git leaves CRLF, directory permissions
@@ -172,7 +180,7 @@ curl -fsSLO https://raw.githubusercontent.com/reynoldsjon-eng/workout-tracker/ma
 ```
 
 It does everything below: it copies the log, installs the service, sets up
-`tailscale serve` on :8443 and checks the hub's 443 entry survived, then sets up the
+`tailscale serve` on :10000 and checks the hub's and Shannon's entries are intact, then sets up the
 backup. It adds the deploy key itself if `gh` is logged in. Otherwise it prints the
 key and waits while you add it. It asks for the hub's sudo password, and it's safe
 to re-run. The manual steps follow.
@@ -197,13 +205,14 @@ sed "s/USER/$USER/g" ~/workout-tracker/deploy/workout-tracker.service \
 sudo systemctl daemon-reload && sudo systemctl enable --now workout-tracker
 curl -s localhost:8777/api/log | head -c 200   # should show your entries
 
-# HTTPS on the tailnet: https://ppc-hub.tail180281.ts.net:8443/
+# HTTPS on the tailnet: https://ppc-hub.tail180281.ts.net:10000/
 tailscale serve status                       # note the hub's existing 443 entry
-sudo tailscale serve --bg --https=8443 http://127.0.0.1:8777
-tailscale serve status                       # 443 → :3000 still there, 8443 → :8777 added, tailnet only
+sudo tailscale serve --bg --https=10000 http://127.0.0.1:8777
+tailscale serve status                       # 443 → :3000 and 8443 → :3100 untouched, 10000 → :8777 added
 ```
 
-Don't run a bare `tailscale serve --bg 8777`. That maps port 443 and replaces the hub.
+Don't run a bare `tailscale serve --bg 8777`, which maps port 443 and replaces the hub.
+Don't use 8443 either: that's Shannon's.
 Use `serve`, never `funnel`.
 
 ```
@@ -224,7 +233,7 @@ its next online launch.
 one starts empty and fills from the server on first launch.
 1. On the old app, Settings → **Sync now**. If you didn't copy `log.json` from the
    private repo, use **Export log.json** here too.
-2. Open `https://ppc-hub.tail180281.ts.net:8443/` in Safari. It connects to the server on its own. If you
+2. Open `https://ppc-hub.tail180281.ts.net:10000/` in Safari. It connects to the server on its own. If you
    exported, use **Import log.json**.
 3. Share → **Add to Home Screen**, and delete the old icon.
 

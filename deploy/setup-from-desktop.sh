@@ -21,7 +21,7 @@ else
   echo "copied"
 fi
 
-say "2/3  App service + tailscale serve on :8443"
+say "2/3  App service + tailscale serve on :10000"
 ssh "$HUB" 'if [ -d ~/workout-tracker/.git ]; then git -C ~/workout-tracker pull -q --ff-only;
             else git clone -q https://github.com/reynoldsjon-eng/workout-tracker.git ~/workout-tracker; fi'
 ssh -t "$HUB" 'bash ~/workout-tracker/deploy/install-on-hub.sh app'
@@ -44,4 +44,4 @@ else
 fi
 ssh -t "$HUB" 'bash ~/workout-tracker/deploy/install-on-hub.sh backup'
 
-say "Done — open https://ppc-hub.tail180281.ts.net:8443/ on the phone"
+say "Done — open https://ppc-hub.tail180281.ts.net:10000/ on the phone"

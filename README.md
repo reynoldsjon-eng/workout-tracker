@@ -34,6 +34,15 @@ Self-hosted on the house mini PC at `https://ppc-hub.tail180281.ts.net:10000/` (
 Each B exercise has its own id, so progression and PRs don't mix the two lists.
 Sessions keep the block they were logged under.
 
+The current block and its start date are stored in the synced log (a `setting`
+entry), so every device and every fresh install agrees on them. Settings has a
+**Started** date to correct the week count.
+
+An open session can be switched with **Switch to A/B** in its header. Ticked sets
+stay and are re-tagged to the new block. Sets for exercises the new block doesn't
+have stay on as one-offs. Unticked rows are rebuilt from the new block's list.
+Switching today's session also makes that the current block.
+
 ## Suggested progression
 
 An open lift shows 2–4 options worked out from the last session at that lift:

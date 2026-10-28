@@ -208,6 +208,7 @@ h2{font-size:13px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
 .frow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--line-soft)}
 .frow:last-child{border-bottom:0}
 .frow label{font-size:14.5px;color:var(--text-2);flex:none}
+.linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);font-weight:600;cursor:pointer}
 .frow input{text-align:right;font-size:17px;font-weight:650;flex:1;min-width:0}
 .frow .u{font-size:12px;color:var(--text-3);width:34px;text-align:left;flex:none}
 textarea.note{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:12px;font-size:15px;resize:vertical;min-height:74px;margin-top:10px}
@@ -819,8 +820,16 @@ function syncSoon(reason, delay = 30000){
 window.addEventListener("online", () => Sync.run("back online"));
 
 /* ---------- derived ---------- */
+/* The current block rides in the entry log, so it syncs like everything else.
+   It used to live in per-device meta, and every fresh install (a new URL, a
+   reinstalled icon, a second phone) quietly fell back to Block A. */
+const BLOCK_ID = "setting-block";
+function blockSetting(){
+  const e = S.entries.find(x => x.id === BLOCK_ID && !x.deleted);
+  return (e && e.value) || S.meta.block || {block:"A", start:today()};
+}
 function blockInfo(on){
-  const b = S.meta.block || {block:"A", start:today()};
+  const b = blockSetting();
   const wk = Math.floor((new Date((on || today())+"T00:00:00") - new Date(b.start+"T00:00:00")) / 6048e5) + 1;
   return {block:b.block, start:b.start, week:Math.max(1, wk)};
 }
@@ -1170,7 +1179,7 @@ function applyProgression(i, k){
 /** Opens a session for any date, live or backfilled, empty or already logged.
     Everything saved for that day is rehydrated, so editing and logging fresh
     are the same screen — there is no separate edit mode to keep in step. */
-function startSession(id, date){
+function startSession(id, date, forceBlock){
   const d = date || today();
   // Resume rather than rebuild — a rebuild would throw away unlogged input.
   if (S.active && S.active.sessionId === id && S.active.date === d){
@@ -1186,7 +1195,7 @@ function startSession(id, date){
     byEx.get(e.exerciseId).push(e);
   }
   // What the block was when it was logged beats what the block is now.
-  const blk = (rows.find(e => e.block) || {}).block || blockInfo(d).block;
+  const blk = forceBlock || (rows.find(e => e.block) || {}).block || blockInfo(d).block;
   const def = plan(ROUTINE.sessions[id], blk);
   const kind = def.kind || (cardioEntry ? "cardio" : "strength");
 
@@ -1541,7 +1550,8 @@ function viewSession(){
       <div class="between">
         <div class="grow">
           <div class="t">${esc(a.sessionName)}</div>
-          <div class="s">Block ${a.block} · ${done}/${total} sets${past ? "" : ` · ${mins} min`}</div>
+          <div class="s">Block ${a.block} · ${done}/${total} sets${past ? "" : ` · ${mins} min`}
+            · <button class="linkbtn" onclick="switchSessionBlock()">Switch to ${a.block === "A" ? "B" : "A"}</button></div>
         </div>
         <button class="iconbtn" onclick="closeSession()">${ICON.x}</button>
       </div>
@@ -2400,6 +2410,8 @@ function viewSettings(){
       <div class="sub" style="margin-top:8px;color:var(--text-3)">
         Week ${b.week}, started ${fmtDay(b.start)}.${b.week >= 4 ? " Four weeks in — time to rotate." : ""}
       </div>
+      <div class="frow" style="margin-top:12px"><label>Started</label>
+        <input type="date" value="${esc(b.start)}" max="${today()}" onchange="setBlockStart(this.value)"></div>
       <button class="btn ghost slim" onclick="setBlock(blockInfo().block, true)">Restart block at today</button>
     </div>
 
@@ -2502,10 +2514,51 @@ function disconnectSync(){
   render(); toast("Disconnected");
 }
 
+async function writeBlock(value){
+  await saveEntry({id:BLOCK_ID, type:"setting", key:"block", value, ts:Date.now()});
+  syncSoon("block", 2000);
+}
+
 async function setBlock(x, restart){
-  const cur = S.meta.block || {block:"A", start:today()};
-  await setMeta("block", {block:x, start:(restart || x !== cur.block) ? today() : cur.start});
+  const cur = blockSetting();
+  await writeBlock({block:x, start:(restart || x !== cur.block) ? today() : cur.start});
   render(); toast(`Block ${x}`);
+}
+
+async function setBlockStart(d){
+  if (!d || d > today()) return toast("Pick a day on or before today");
+  await writeBlock({...blockSetting(), start:d});
+  render();
+}
+
+/** Re-open the active session under the other block. Logged sets stay, and are
+    re-tagged so the session reads as the new block from here on; sets for
+    exercises the new block doesn't have stay on as one-offs. Unticked input
+    is rebuilt from the new block's targets. */
+async function switchSessionBlock(){
+  const a = S.active;
+  if (!a) return;
+  const nb = a.block === "A" ? "B" : "A";
+  const live = a.date === today() && blockInfo().block !== nb;
+  if (!confirm(`Switch this session to Block ${nb}?` +
+    "\n\nSets you've ticked stay. Anything not ticked yet is replaced by Block " + nb + "'s exercises." +
+    (live ? `\n\nYour current block becomes ${nb} too.` : ""))) return;
+
+  const now = Date.now();
+  const rows = S.entries.filter(e => !e.deleted && e.date === a.date && e.sessionId === a.sessionId && e.block);
+  for (const e of rows) await saveEntry({...e, block:nb, ts:now});
+  if (live) await writeBlock({block:nb, start:blockSetting().start});
+
+  const {sessionId, date, startedAt} = a;
+  S.active = null;
+  startSession(sessionId, date);
+  if (S.active && S.active.block !== nb){                // nothing logged yet to carry the block
+    S.active = null;
+    startSession(sessionId, date, nb);
+  }
+  if (S.active) { S.active.startedAt = startedAt; persistActive(); }
+  syncSoon("switch block", 4000);
+  render(); toast(`Block ${nb}`);
 }
 
 /* ---------- Add-exercise sheet ---------- */
@@ -2618,7 +2671,7 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
 
 // expose handlers used from inline attributes
 Object.assign(window, {go, startSession, logSet, unlogSet, finishSession, closeSession, toggleMobility,
-  setVal, bump, focusEx, addSet, openDetail, setBlock, sheetAddExercise, confirmAddExercise, stepIn, quickAdd,
+  setVal, bump, focusEx, addSet, openDetail, setBlock, setBlockStart, switchSessionBlock, sheetAddExercise, confirmAddExercise, stepIn, quickAdd,
   commitEdit, commitAll, commitSet, cardioDirty,
   exportJSON, importJSON, adjustRest, skipRest, blockInfo, num, persistActive, S, DB,
   Sync, connectSync, connectServer, disconnectSync, mergeEntries, sheetNote, saveNote, exNote, distKm,

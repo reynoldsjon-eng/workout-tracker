@@ -540,6 +540,49 @@ const plan = (def, blk) => (def && def[blk] && def[blk].exercises) ? {...def, ..
 const routineExercises = () => Object.values(ROUTINE.sessions)
   .flatMap(s => [...(s.exercises || []), ...((s.B && s.B.exercises) || [])]);
 
+/* ==========================================================================
+   Custom HIIT workouts — written on the phone, stored in the entry log
+   (type "workout") so they sync like everything else. The entry id doubles
+   as the session id, so logged sessions point straight back at the workout.
+   Deletes are tombstones, and a deleted workout still resolves, so sessions
+   logged with it keep their warm-up, blocks and score field in history.
+   ========================================================================== */
+const CUSTOM_PREFIX = "custom-";
+const isCustom = id => String(id).startsWith(CUSTOM_PREFIX);
+const customWorkouts = () => S.entries.filter(e => e.type === "workout" && !e.deleted)
+  .sort((a, b) => (a.created || 0) - (b.created || 0));
+
+/** "Heading:" on its own line starts a block; lines before any heading land in the first one. */
+function parseBlocks(work, fallback){
+  const blocks = [];
+  for (const raw of String(work || "").split(/\n/)){
+    const l = raw.trim();
+    if (!l) continue;
+    if (/:$/.test(l) && l.length > 1) { blocks.push({h:l.slice(0, -1).trim(), lines:[]}); continue; }
+    if (!blocks.length) blocks.push({h:fallback || "Workout", lines:[]});
+    blocks[blocks.length - 1].lines.push(l);
+  }
+  return blocks.filter(b => b.lines.length);
+}
+
+function customDef(e){
+  const blocks = parseBlocks(e.work, e.format);
+  if (e.score) blocks.push({h:"Score", lines:[e.score]});
+  return {name:e.name || "Custom HIIT", kind:"cardio", metcon:true, custom:true, alt:"zwift-hiit",
+    tag:"Metcon · " + (e.format || "Custom"), warmup:e.warmup || "", blocks, cooldown:e.cooldown || ""};
+}
+
+/** The plan for any session id — built-in or custom. */
+function sessionDef(id){
+  if (ROUTINE.sessions[id]) return ROUTINE.sessions[id];
+  if (!isCustom(id)) return undefined;
+  const e = S.entries.find(x => x.id === id);          // tombstoned too, on purpose
+  return e ? customDef(e) : {name:"Custom HIIT", kind:"cardio", metcon:true, custom:true, tag:"Metcon · Custom", blocks:[]};
+}
+
+/** Every session that can be started: the routine, then the custom workouts. */
+const allSessions = () => [...Object.entries(ROUTINE.sessions), ...customWorkouts().map(e => [e.id, customDef(e)])];
+
 const MOBILITY = [
   "Couch / hip-flexor stretch — 60 s/side",
   "90/90 hip rotations — 8/side",
@@ -867,7 +910,7 @@ function mobilityStreak(){
 function sessionList(){
   const map = new Map();
   for (const e of S.entries){
-    if (e.deleted || e.type === "mobility") continue;
+    if (e.deleted || e.type === "mobility" || e.type === "workout" || e.type === "setting") continue;
     const key = e.date + "|" + e.sessionId;
     if (!map.has(key)) map.set(key, {date:e.date, sessionId:e.sessionId, sessionName:e.sessionName, entries:[]});
     map.get(key).entries.push(e);
@@ -1196,7 +1239,7 @@ function startSession(id, date, forceBlock){
   }
   // What the block was when it was logged beats what the block is now.
   const blk = forceBlock || (rows.find(e => e.block) || {}).block || blockInfo(d).block;
-  const def = plan(ROUTINE.sessions[id], blk);
+  const def = plan(sessionDef(id), blk);
   const kind = def.kind || (cardioEntry ? "cardio" : "strength");
 
   const exercises = (def.exercises || []).map(ex => buildExercise(ex, blk, d, byEx.get(ex.id)));
@@ -1455,7 +1498,7 @@ const tabs = () => `<nav class="tabs">
 
 /* ---------- Today ---------- */
 function viewToday(){
-  const d = new Date(), sid = ROUTINE.week[d.getDay()], b = blockInfo(), s = plan(ROUTINE.sessions[sid], b.block);
+  const d = new Date(), sid = ROUTINE.week[d.getDay()], b = blockInfo(), s = plan(sessionDef(sid), b.block);
   const done = sessionList().some(x => x.date === today() && x.sessionId === sid);
   const resume = S.active && S.active.date === today();
   const mob = S.entries.find(e => e.id === "mob-" + today() && !e.deleted);
@@ -1499,7 +1542,11 @@ function viewToday(){
         </button>`}
       ${done ? `<div class="meta" style="margin-top:10px;color:var(--accent)">✓ Already logged today</div>` : ""}
       ${s.alts ? `<div class="meta" style="margin-top:16px;color:var(--text-2);font-weight:650">Or swap in a metcon</div>
-        <div class="picks" style="margin-top:8px">${s.alts.map(k => metconPick(k)).join("")}</div>` : ""}
+        <div class="picks" style="margin-top:8px">${[...s.alts, ...customWorkouts().map(e => e.id)].map(k => metconPick(k)).join("")}
+          <button class="pick" onclick="sheetWorkout()">
+            <div class="bar" style="background:var(--line)"></div>
+            <div class="n">+ New HIIT</div><div class="d">Write your own</div>
+          </button></div>` : ""}
     </div>
 
     <div class="card flush">
@@ -1516,7 +1563,7 @@ function viewToday(){
 
     <h2>Log something else</h2>
     <div class="picks">
-      ${Object.entries(ROUTINE.sessions).filter(([k,v]) => v.kind !== "rest" && k !== sid && !(s.alts || []).includes(k)).map(([k,v]) => [k, plan(v, b.block)]).map(([k,v]) =>
+      ${allSessions().filter(([k,v]) => v.kind !== "rest" && k !== sid && !(s.alts || []).includes(k) && !(s.alts && v.custom)).map(([k,v]) => [k, plan(v, b.block)]).map(([k,v]) =>
         `<button class="pick" onclick="startSession('${k}')">
            <div class="bar" style="background:${v.metcon ? "var(--amber)" : v.kind==="cardio"?"var(--cyan)":"var(--lime)"}"></div>
            <div class="n">${esc(v.name)}</div><div class="d">${esc(v.tag||"")}</div>
@@ -1528,7 +1575,7 @@ function viewToday(){
 }
 
 function metconPick(k){
-  const v = ROUTINE.sessions[k];
+  const v = sessionDef(k);
   return `<button class="pick" onclick="startSession('${k}')">
     <div class="bar" style="background:var(--amber)"></div>
     <div class="n">${esc(v.name)}</div><div class="d">${esc(v.tag.replace(/^Metcon · /, ""))}</div>
@@ -1770,7 +1817,7 @@ function closeSession(){
 
 /* ---------- Cardio ---------- */
 function viewCardio(){
-  const a = S.active, c = a.cardio, s = ROUTINE.sessions[a.sessionId];
+  const a = S.active, c = a.cardio, s = sessionDef(a.sessionId);
   const f = (lbl, key, unit, step) => `<div class="frow">
       <label>${lbl}</label>
       <input class="num" type="number" inputmode="decimal" step="${step||1}" value="${c[key] ?? ""}"
@@ -1786,6 +1833,8 @@ function viewCardio(){
     <div class="scroll" style="padding-top:16px">
       ${s && s.detail ? `<div class="card" style="color:var(--text-2);font-size:14px">${esc(s.detail)}</div>` : ""}
       ${s && s.metcon ? metconCard(s) : ""}
+      ${s && s.custom && customWorkouts().some(e => e.id === a.sessionId)
+        ? `<button class="btn ghost slim" style="margin-top:0" onclick="sheetWorkout('${a.sessionId}')">Edit this workout</button>` : ""}
       <div class="card">
         ${f("Duration","durationMin","min")}
         ${s && s.metcon ? `<div class="frow">
@@ -1804,11 +1853,15 @@ function viewCardio(){
 }
 
 function metconCard(s){
-  const sec = (h, body) => `<div style="margin-top:14px"><div class="mk">${esc(h)}</div>${body}</div>`;
+  const secs = [
+    s.warmup && ["Warm-up", [s.warmup]],
+    ...(s.blocks || []).map(b => [b.h, b.lines]),
+    s.cooldown && ["Cool-down", [s.cooldown]]
+  ].filter(Boolean);
+  if (!secs.length) return "";
   return `<div class="card metcon">
-    ${sec("Warm-up", `<div class="ml">${esc(s.warmup)}</div>`).replace('style="margin-top:14px"', "")}
-    ${s.blocks.map(b => sec(b.h, b.lines.map(l => `<div class="ml">${esc(l)}</div>`).join(""))).join("")}
-    ${sec("Cool-down", `<div class="ml">${esc(s.cooldown)}</div>`)}
+    ${secs.map(([h, lines], i) => `<div${i ? ' style="margin-top:14px"' : ""}><div class="mk">${esc(h)}</div>
+      ${lines.map(l => `<div class="ml">${esc(l)}</div>`).join("")}</div>`).join("")}
   </div>`;
 }
 
@@ -1838,7 +1891,7 @@ const lastDays = n => Array.from({length:n}, (_, i) => shiftDate(today(), -i));
 
 function dayRow(d){
   const ss = sessionsOn(d), mob = mobilityOn(d);
-  const sched = ROUTINE.sessions[ROUTINE.week[new Date(d+"T00:00:00").getDay()]];
+  const sched = sessionDef(ROUTINE.week[new Date(d+"T00:00:00").getDay()]);
   const sum = ss.length
     ? ss.map(s => s.sessionName).join(" · ") + (mob ? " · mobility" : "")
     : mob ? "Mobility only"
@@ -1873,7 +1926,7 @@ function sheetDay(date){
             <span style="color:var(--text-3)">${ICON.chev}</span></button>`).join("")}` : ""}
         <h2 style="margin:${ss.length ? "18px" : "0"} 0 9px">${ss.length ? "Log another" : "Log a session"}</h2>
         <div class="picks">
-          ${Object.entries(ROUTINE.sessions).filter(([k,v]) => v.kind !== "rest" && !ss.some(s => s.sessionId === k)).map(([k,v]) =>
+          ${allSessions().filter(([k,v]) => v.kind !== "rest" && !ss.some(s => s.sessionId === k)).map(([k,v]) =>
             `<button class="pick" onclick="editSession('${date}','${k}')">
                <div class="bar" style="background:${v.kind === "cardio" ? "var(--cyan)" : "var(--lime)"};${k === sid ? "" : "opacity:.35"}"></div>
                <div class="n">${esc(v.name)}</div>
@@ -2415,6 +2468,16 @@ function viewSettings(){
       <button class="btn ghost slim" onclick="setBlock(blockInfo().block, true)">Restart block at today</button>
     </div>
 
+    <h2>Custom HIIT workouts</h2>
+    ${customWorkouts().map(e => `<button class="hitem" onclick="sheetWorkout('${e.id}')">
+        <div class="grow"><div class="nm trunc">${esc(e.name)}</div>
+          <div class="sm trunc">${esc(e.format || "Custom")}</div></div>
+        <span style="color:var(--text-3)">${ICON.chev}</span></button>`).join("")}
+    <div class="card"${customWorkouts().length ? "" : ' style="margin-top:0"'}>
+      <div class="sub" style="margin-top:0">Your own metcons. They show up next to the built-in ones on the HIIT day, and under Log something else on any day.</div>
+      <button class="btn slim" onclick="sheetWorkout()">+ New HIIT workout</button>
+    </div>
+
     <h2>Sync</h2>
     ${viewSync()}
 
@@ -2561,6 +2624,61 @@ async function switchSessionBlock(){
   render(); toast(`Block ${nb}`);
 }
 
+/* ---------- Custom HIIT editor ----------
+   The draft lives in S.draft, not just the DOM, so a re-render (a toast, a
+   sync landing) can't wipe what's been typed. */
+const WORKOUT_FIELDS = ["name", "format", "warmup", "work", "score", "cooldown"];
+function sheetWorkout(id){
+  const e = id && S.entries.find(x => x.id === id && !x.deleted);
+  S.draft = {id: e ? e.id : null};
+  WORKOUT_FIELDS.forEach(k => S.draft[k] = e ? e[k] || "" : "");
+  const inp = (k, ph) => `<input type="text" value="${esc(S.draft[k])}" placeholder="${esc(ph)}" autocomplete="off"
+      oninput="S.draft.${k}=this.value" style="margin-bottom:10px">`;
+  const area = (k, ph, rows) => `<textarea class="note" rows="${rows}" placeholder="${esc(ph)}"
+      oninput="S.draft.${k}=this.value" style="margin:0 0 10px">${esc(S.draft[k])}</textarea>`;
+  const lbl = t => `<div class="meta" style="margin:4px 0 6px;color:var(--text-2);font-weight:650">${t}</div>`;
+  S.sheet = () => `<div class="mask" onclick="if(event.target===this){S.sheet=null;render()}">
+    <div class="sheet">
+      <h4>${S.draft.id ? "Edit HIIT workout" : "New HIIT workout"}</h4>
+      ${lbl("Name")}${inp("name", "e.g. Burpee Ladder")}
+      ${lbl("Format")}${inp("format", "e.g. 20 min EMOM · ~35 min total")}
+      ${lbl("Warm-up")}${area("warmup", "8 min easy spin, swap shoes → 2 easy rounds", 2)}
+      ${lbl("Workout")}
+      <div class="sub" style="margin:0 0 8px;color:var(--text-3)">One line each. End a line with a colon to start a new section.</div>
+      ${area("work", "5 rounds, 40 s on / 20 s off:\nBurpees\nWall-ball thrusters\nBox step-ups\nRest 1 min between rounds", 7)}
+      ${lbl("Score")}${inp("score", "e.g. Total reps across all rounds")}
+      ${lbl("Cool-down")}${area("cooldown", "5 min walk, then the hip-flexor stretch", 2)}
+      <button class="btn" onclick="saveWorkout()">Save</button>
+      ${S.draft.id ? `<button class="btn ghost slim" style="color:var(--red)" onclick="deleteWorkout()">Delete workout</button>` : ""}
+      <button class="btn ghost slim" onclick="S.sheet=null;render()">Cancel</button>
+    </div></div>`;
+  render();
+}
+
+async function saveWorkout(){
+  const d = S.draft;
+  if (!d || !d.name.trim()) return toast("Name the workout");
+  if (!parseBlocks(d.work).length) return toast("Add at least one line to the workout");
+  const cur = d.id && S.entries.find(x => x.id === d.id);
+  const e = {id: d.id || CUSTOM_PREFIX + uid(), type:"workout", ts:Date.now(),
+    created: cur ? cur.created || cur.ts : Date.now(), deleted:false};
+  WORKOUT_FIELDS.forEach(k => e[k] = String(d[k] || "").trim());
+  await saveEntry(e);
+  // Keep an open session on this workout in step with the rename.
+  if (S.active && S.active.sessionId === e.id){ S.active.sessionName = e.name; persistActive(); }
+  S.sheet = null; S.draft = null; render(); toast(cur ? "Workout saved" : "Workout added");
+  syncSoon("custom workout", 4000);
+}
+
+async function deleteWorkout(){
+  const e = S.draft && S.entries.find(x => x.id === S.draft.id && !x.deleted);
+  if (!e) return;
+  if (!confirm(`Delete ${e.name}? Sessions already logged with it stay in history.`)) return;
+  await saveEntry({...e, deleted:true, ts:Date.now()});
+  S.sheet = null; S.draft = null; render(); toast("Workout deleted");
+  syncSoon("delete workout", 4000);
+}
+
 /* ---------- Add-exercise sheet ---------- */
 function sheetAddExercise(){
   const known = [...knownExercises().entries()];
@@ -2670,7 +2788,7 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
 })();
 
 // expose handlers used from inline attributes
-Object.assign(window, {go, startSession, logSet, unlogSet, finishSession, closeSession, toggleMobility,
+Object.assign(window, {go, sheetWorkout, saveWorkout, deleteWorkout, startSession, logSet, unlogSet, finishSession, closeSession, toggleMobility,
   setVal, bump, focusEx, addSet, openDetail, setBlock, setBlockStart, switchSessionBlock, sheetAddExercise, confirmAddExercise, stepIn, quickAdd,
   commitEdit, commitAll, commitSet, cardioDirty,
   exportJSON, importJSON, adjustRest, skipRest, blockInfo, num, persistActive, S, DB,

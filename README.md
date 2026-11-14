@@ -82,6 +82,22 @@ They log like a ride, with a duration, a free-text score, HR and RPE.
 The bike is warm-up only. Clipless pedals mean a shoe change, so the work blocks
 use burpees, wall balls, dumbbells and the box, and cool-downs are on foot.
 
+### Custom HIIT workouts
+
+**+ New HIIT** on the HIIT day, or **Settings → Custom HIIT workouts**, opens an
+editor with a name, format, warm-up, workout, score and cool-down. In the workout
+box, each movement goes on its own line. A line ending in a colon starts a new
+section, such as `5 rounds, 40 s on / 20 s off:`.
+
+Custom workouts sit next to the built-in metcons on the HIIT day, and under
+**Log something else** on every other day. They log the same way as the built-in
+ones. Tap one in Settings, or **Edit this workout** on its session screen, to
+change or delete it.
+
+They're stored in the synced log (`type: "workout"`), so every device sees them.
+A deleted workout leaves a tombstone, so the sessions logged with it keep their
+name and score in History.
+
 ## Earlier days
 
 Sessions don't have to be logged the day they happen.
